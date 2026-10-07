@@ -1,170 +1,34 @@
 @import "tailwindcss";
 
+/* Brand design tokens — these generate utilities such as bg-royal, text-orange, shadow-soft */
 @theme {
-  --color-paper: #ffffff;
-  --color-ink: #0a2044;
-  --color-muted: rgba(10, 32, 68, 0.64);
-  --color-line: rgba(10, 32, 68, 0.12);
-  --color-accent: #f58232;
-  --color-accent-dark: #d96a1e;
-  --color-coal: #0a2044;
-  --color-slate-soft: #14305e;
-  --font-inter: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-display), Georgia, "Times New Roman", serif;
+  /* From the JaaDeX logo and pitch deck */
+  --color-navy: #07074f;      /* logo wordmark: headings */
+  --color-midnight: #031552;  /* deck dark panels: footer, bands, top bar */
+  --color-royal: #1450d6;     /* deck royal blue: primary actions, links */
+  --color-royal-dark: #0c35a0;
+  --color-sky: #18a8ee;       /* logo swoosh */
+  --color-orange: #f4690d;    /* logo "X" */
+  --color-orange-dark: #c9500a;
+  --color-gold: #ffb02e;
+  --color-green: #34a334;
+  --color-purple: #6d3fd6;
+  --color-teal: #1b9aaa;
+  --color-mist: #f4f7ff;      /* page background */
+  --color-paper: #fbfcff;
+  --color-ink: #1a2358;       /* body text */
+  --color-muted: #52608a;
+  --color-line: #dbe3f5;
+
+  --shadow-soft: 0 16px 42px rgb(20 50 150 / 0.14);
+  --shadow-pop-orange: 0 5px 0 var(--color-orange-dark);
+  --shadow-pop-royal: 0 5px 0 var(--color-royal-dark);
+
+  --background-image-hero-wash: linear-gradient(135deg, #eaf1ff, #ffffff 55%, #e1ebff);
 }
 
-:root {
-  --background: #ffffff;
-  --foreground: #0a2044;
+/* System font stack (no webfont download) */
+@theme inline {
+  --font-sans: ui-rounded, "Trebuchet MS", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
 }
-
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  background: #ffffff;
-  color: #0a2044;
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-/* Entrance */
-@keyframes hero-rise {
-  from { opacity: 0; transform: translateY(18px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes hero-mock {
-  from { opacity: 0; transform: translateY(28px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes playhead-loop {
-  0% { left: 6%; }
-  50% { left: 82%; }
-  100% { left: 6%; }
-}
-@keyframes drift {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(14px, -12px); }
-}
-@keyframes float-y {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-@keyframes blink-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-
-.hero-anim { opacity: 0; animation: hero-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-.hero-mock-anim { opacity: 0; animation: hero-mock 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.25s forwards; }
-.scroll-scale-inner { will-change: transform; }
-
-/* Clip-wipe button system — no color fading, geometry does the work. */
-.clip-btn {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 0;
-  background: transparent;
-}
-.clip-btn-primary {
-  background: #F58232;
-  box-shadow: inset 0 0 0 1px #F58232;
-}
-.clip-btn-secondary {
-  background: #fff;
-  box-shadow: inset 0 0 0 1px #0A2044;
-}
-.clip-btn-fill {
-  position: absolute;
-  inset: -1px;
-  z-index: 0;
-  border-radius: inherit;
-  clip-path: inset(0 100% 0 0 round 7px);
-  -webkit-clip-path: inset(0 100% 0 0 round 7px);
-  transition: clip-path 0.42s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.clip-btn-primary .clip-btn-fill {
-  background: #0A2044;
-  box-shadow: inset 0 0 0 1px #0A2044;
-}
-.clip-btn-secondary .clip-btn-fill {
-  background: #F58232;
-  box-shadow: inset 0 0 0 1px #F58232;
-}
-.clip-btn:hover .clip-btn-fill,
-.clip-btn:focus-visible .clip-btn-fill {
-  clip-path: inset(0 0 0 0);
-  -webkit-clip-path: inset(0 0 0 0);
-}
-.clip-btn-label {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.clip-btn-label-base {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: clip-path 0.42s cubic-bezier(0.22, 1, 0.36, 1);
-  clip-path: inset(0 0 0 0);
-  -webkit-clip-path: inset(0 0 0 0);
-}
-.clip-btn-label-hover {
-  position: absolute;
-  inset: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #fff;
-  white-space: nowrap;
-  clip-path: inset(0 0 0 100%);
-  -webkit-clip-path: inset(0 0 0 100%);
-  transition: clip-path 0.42s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.clip-btn:hover .clip-btn-label-base,
-.clip-btn:focus-visible .clip-btn-label-base {
-  clip-path: inset(0 100% 0 0);
-  -webkit-clip-path: inset(0 100% 0 0);
-}
-.clip-btn:hover .clip-btn-label-hover,
-.clip-btn:focus-visible .clip-btn-label-hover {
-  clip-path: inset(0 0 0 0);
-  -webkit-clip-path: inset(0 0 0 0);
-}
-.spring-panel {
-  position: relative;
-  transform-origin: center;
-  transform-style: preserve-3d;
-  will-change: transform;
-  transition: box-shadow 0.35s ease, border-color 0.35s ease;
-}
-.spring-panel-active {
-  border-color: rgba(245, 130, 50, 0.45) !important;
-  box-shadow: 0 22px 44px -22px rgba(10, 32, 68, 0.65), 0 0 0 1px rgba(245, 130, 50, 0.18);
-  z-index: 40 !important;
-}
-.playhead-anim { animation: playhead-loop 9s ease-in-out infinite; }
-.drift-anim { animation: drift 7s ease-in-out infinite; }
-.float-anim { animation: float-y 5s ease-in-out infinite; }
-.status-dot { animation: blink-dot 2.2s ease-in-out infinite; }
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-anim, .hero-mock-anim, .playhead-anim, .drift-anim, .float-anim, .status-dot, .spring-panel,
-  .clip-btn-fill, .clip-btn-label-base, .clip-btn-label-hover, .scroll-scale-inner {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-  .clip-btn-fill, .clip-btn-label-base, .clip-btn-label-hover {
-    transition: none !important;
-  }
-  html { scroll-behavior: auto; }
-}
-
-::selection { background: #F58232; color: #fff; }
-

@@ -1,32 +1,25 @@
 import type { Metadata } from "next";
-import { Inter, Instrument_Serif } from "next/font/google";
 import "./globals.css";
+import "remixicon/fonts/remixicon.css";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+import { siteConfig } from "@/lib/site";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const instrumentSerif = Instrument_Serif({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["400"],
-  display: "swap",
-});
+// System font stack — no webfont download, no layout shift.
 
 export const metadata: Metadata = {
-  title: "Jaadex Innovision",
-  description: "An innovative platform for creative minds to showcase their ideas and projects.",
+  title: { default: "JaaDeX — Imagine. Create. Animate.", template: "%s | JaaDeX" },
+  description: siteConfig.description,
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${instrumentSerif.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className="scroll-smooth motion-reduce:scroll-auto" data-scroll-behavior="smooth">
+      <body className="bg-mist font-sans text-ink antialiased">
+        <Header />
+        <main>{children}</main>
+        <Footer />
+      </body>
     </html>
   );
 }
