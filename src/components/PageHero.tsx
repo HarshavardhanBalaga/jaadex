@@ -16,7 +16,7 @@ export function PageHero({ eyebrow, title, description, art, children }: PageHer
       <Container className="grid items-center gap-[25px] md:grid-cols-[1.15fr_.85fr] md:gap-[35px]">
         <div>
           <Eyebrow>✦ {eyebrow}</Eyebrow>
-          <h1 className="my-5 text-5xl leading-[.99] font-black tracking-[-2.5px] text-navy max-[400px]:text-[42px] md:text-[clamp(39px,5vw,60px)] md:tracking-[-2.6px] [&>span]:block [&>span]:text-orange">{title}</h1>
+          <h1 className="my-5 font-display text-5xl leading-[.99] font-black tracking-[-2.5px] text-navy max-[400px]:text-[42px] md:text-[clamp(39px,5vw,60px)] md:tracking-[-2.6px] [&>span]:block [&>span]:text-orange">{title}</h1>
           <p className="mb-[25px] max-w-[640px] leading-[1.75] text-[#4a5a85]">{description}</p>
           {children ? <div className="flex flex-wrap gap-3">{children}</div> : null}
         </div>
