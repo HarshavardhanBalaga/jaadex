@@ -6,7 +6,7 @@ export function CalloutBand({ title, description, children }: { title: string; d
     <section className="relative overflow-hidden bg-royal py-[60px] text-white">
       <Container className="grid items-center gap-7 md:grid-cols-[1fr_auto]">
         <div>
-          <h2 className="mb-3 text-[clamp(29px,4vw,43px)] leading-[1.1] font-black tracking-[-1.4px]">{title}</h2>
+          <h2 className="mb-3 font-display text-[clamp(29px,4vw,43px)] leading-[1.1] font-black tracking-[-1.4px]">{title}</h2>
           <p className="max-w-[680px] leading-[1.7] text-[#d6e2ff]">{description}</p>
         </div>
         <div className="flex flex-wrap gap-[11px] max-md:mt-1.5">{children}</div>

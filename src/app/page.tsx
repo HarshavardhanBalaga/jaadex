@@ -1,13 +1,13 @@
-import type { ReactNode } from "react";
+import Image from "next/image";
 import { Icon } from "@/components/Icon";
+import { Hero } from "@/components/Hero";
 import { ButtonLink } from "@/components/ButtonLink";
 import { CalloutBand } from "@/components/CalloutBand";
 import { Container } from "@/components/Container";
-import { Eyebrow } from "@/components/Eyebrow";
 import { FaqAccordion } from "@/components/FaqAccordion";
+import { CourseCard } from "@/components/CourseCard";
 import { FeatureCard } from "@/components/FeatureCard";
 import { FeatureGrid } from "@/components/FeatureGrid";
-import { InfoStrip } from "@/components/InfoStrip";
 import { Section } from "@/components/Section";
 import { SectionHeading } from "@/components/SectionHeading";
 import { SplitFeature } from "@/components/SplitFeature";
@@ -19,90 +19,143 @@ const faqs = [
   { question: "Can we collaborate or host a workshop with JaaDeX?", answer: "Yes. Schools, educational institutions, creative professionals and potential partners can contact the team to discuss events, training, sponsorship or project collaborations." },
 ];
 
-function FloatingCard({ icon, title, caption, className }: { icon: string; title: string; caption: string; className: string }) {
-  return (
-    <div className={`absolute z-3 flex items-center gap-2.5 rounded-[17px] bg-[#ffffff] px-3.5 py-3 text-xs font-black shadow-soft max-[400px]:text-[10px] ${className}`}>
-      <span className="grid size-[39px] place-items-center rounded-[13px] bg-[#ffe6d3] text-[22px]">{icon}</span>
-      <div>
-        {title}
-        <small className="mt-[3px] block text-[10px] font-extrabold text-muted">{caption}</small>
-      </div>
-    </div>
-  );
-}
-
-function Leaf({ children, className }: { children: ReactNode; className: string }) {
-  return <span className={`absolute text-4xl ${className}`}>{children}</span>;
-}
-
 export default function HomePage() {
   return (
     <>
-      <section className="relative overflow-hidden bg-hero-wash py-[38px] md:py-[58px]">
-        <Container className="grid items-center gap-[25px] md:grid-cols-2 md:gap-[38px]">
-          <div>
-            <Eyebrow>✦ Learning meets imagination</Eyebrow>
-            <h1 className="my-5 text-5xl leading-[.99] font-black tracking-[-2.5px] text-navy max-[400px]:text-[42px] md:text-[clamp(43px,5.3vw,68px)] md:tracking-[-3px]">
-              Imagine more.<span className="block text-orange">Create anything.</span>
-            </h1>
-            <p className="mb-[25px] max-w-[560px] leading-[1.75] text-[#4a5a85]">JaaDeX brings animation, storytelling and creative technology into learning. We help schools and young creators move from watching ideas to making their own stories, lessons and digital experiences.</p>
-            <div className="flex flex-wrap gap-3">
-              <ButtonLink href="/schools" className="max-[400px]:w-full">Explore school solutions <span aria-hidden="true">→</span></ButtonLink>
-              <ButtonLink href="/projects" variant="light" className="max-[400px]:w-full">Discover our projects</ButtonLink>
-            </div>
-            <div className="mt-[22px] flex items-center gap-2.5 text-xs font-extrabold text-[#4f5f8c]"><span className="text-[22px] whitespace-nowrap">🎨 🎬 🌱</span> A creative space for learners, educators and future storytellers.</div>
-          </div>
-          <div className="relative min-h-[320px] overflow-hidden rounded-[36px] border-[7px] border-white/65 bg-linear-[160deg,#6c9bf5,#2f63dc_48%,#0a2a8c] shadow-[0_22px_55px_rgb(20_60_160/0.15)] md:min-h-[350px] lg:min-h-[400px]" role="img" aria-label="Playful creative learning illustration">
-            <span className="absolute top-[34px] right-[47px] size-[95px] rounded-full bg-[#ffc24a] shadow-[0_0_0_14px_rgb(255_194_74/0.15)]" />
-            <Leaf className="top-12 left-[38px]">🍃</Leaf>
-            <Leaf className="top-[120px] right-[25px]">🌿</Leaf>
-            <span className="absolute bottom-[78px] left-[15px] text-[90px] drop-shadow-[0_8px_3px_rgb(20_70_190/0.33)]">🌴</span>
-            <span className="absolute bottom-[25px] left-[18%] z-2 text-[95px] whitespace-nowrap drop-shadow-[0_13px_5px_rgb(7_7_80/0.25)] md:text-[clamp(86px,10vw,125px)]">🧑🏻‍🎨 👧🏽</span>
-            <span className="absolute -bottom-[75px] -left-[8%] h-[170px] w-[120%] -rotate-5 rounded-[50%_50%_0_0] bg-midnight" />
-            <FloatingCard icon="🎨" title="Ideas become creations" caption="Imagine · Create · Animate" className="top-12 -left-2.5 max-[400px]:-left-[5px]" />
-            <FloatingCard icon="🚀" title="Learning in action" caption="Every idea can grow" className="right-[-8px] bottom-[45px] max-[400px]:right-[-5px]" />
-          </div>
-        </Container>
-      </section>
-
-      <InfoStrip items={[{ icon: "🎨", label: "Animation & storytelling" }, { icon: "🏫", label: "School learning" }, { icon: "🧩", label: "Creative projects" }, { icon: "🎤", label: "Workshops & events" }]} />
+      <Hero
+        title={
+          <>
+            Little Ideas<span className="block text-orange">Big Creations.</span>
+          </>
+        }
+        description="Animation, storytelling and creative tech that help young learners imagine more and make more."
+        cta={{ label: "Book a Demo ↗", href: "/contact?interest=Product%20Demonstration" }}
+      />
 
       <Section>
         <Container>
-          <SectionHeading eyebrow="Welcome to JaaDeX" title="Creativity is a way to learn." description="We combine technology and imagination to help learners understand concepts, communicate ideas and develop creative confidence through hands-on experiences." />
+          <SectionHeading
+            eyebrow="Discover JaaDeX"
+            title={
+              <>
+                More than learning.
+                <br />
+                It&apos;s learning by creating.
+              </>
+            }
+            description="From a first animated lesson to an AI-assisted film idea, JaaDeX gives learners room to explore, experiment and express themselves."
+          />
           <FeatureGrid columns={4}>
-            <FeatureCard icon={<Icon name="palette" size={32} />} title="Animation learning" description="Explore frames, layers, movement and visual storytelling through creative projects." href="/schools" linkLabel="For schools" />
-            <FeatureCard icon={<Icon name="school" size={32} />} title="School partnerships" description="Work with educators to bring animation activities and creative technology into classrooms." href="/schools" linkLabel="Explore school support" />
-            <FeatureCard icon={<Icon name="sparkles" size={32} />} title="Original projects" description="Develop educational content, story worlds and creative concepts with room to grow." href="/projects" linkLabel="View projects" />
-            <FeatureCard icon={<Icon name="users" size={32} />} title="Events & workshops" description="Create opportunities for students, educators and creative communities to learn together." href="/events" linkLabel="Explore events" />
+            <FeatureCard tone="blue" icon={<Icon name="wand" size={32} />} title="JaaDeX Animate" description="Bring drawings, ideas and classroom concepts to life with a hands-on animation experience." href="/schools" linkLabel="Explore animation" />
+            <FeatureCard tone="peach" icon={<Icon name="book" size={32} />} title="Storytelling Studio" description="Build characters, shape stories and turn imagination into meaningful visual narratives." href="/platform#storytelling" linkLabel="Find your story" />
+            <FeatureCard tone="lilac" icon={<Icon name="sparkles" size={32} />} title="AI Creative Learning" description="Discover thoughtful ways to use emerging AI tools for ideas, visuals and creative projects." href="/platform" linkLabel="Explore AI learning" />
+            <FeatureCard tone="mint" icon={<Icon name="clapperboard" size={32} />} title="AI Filmmaking" description="Learn the creative journey from concept and script to scenes, video and a finished film." href="/ai-filmmaking" linkLabel="View learning paths" />
           </FeatureGrid>
         </Container>
       </Section>
-
+{/* 
       <SplitFeature eyebrow="Our purpose" title="Help learners become creators, not just viewers." description="JaaDeX is building approachable creative learning experiences where students can explore ideas, make animated explanations, develop stories and share what they have learned." art="🧑🏽‍💻" artLabel="Learn by creating" points={["Hands-on animation and storytelling activities", "Creative technology connected to learning goals", "Support for educators and institutions"]}>
         <ButtonLink href="/about" variant="dark">Get to know JaaDeX ↗</ButtonLink>
-      </SplitFeature>
+      </SplitFeature> */}
+{/* 
+      <section className="relative overflow-hidden bg-[#0c35a0]/90 py-[60px] text-white">
+        <Container className="grid items-center gap-7 md:grid-cols-[1.25fr_.75fr]">
+          <div>
+            <h2 className="mb-3 font-display text-[clamp(29px,4vw,43px)] leading-[1.1] font-black tracking-[-1.4px]">
+              Every creator starts with a spark.
+              <Image
+                src="/assets/spark-svgrepo-com.svg"
+                alt=""
+                aria-hidden="true"
+                width={40}
+                height={40}
+                className="ml-3 inline-block size-9 align-[-6px] brightness-0 invert md:size-10"
+              />
+            </h2>
+            <p className="max-w-[680px] leading-[1.7] text-[#d6e2ff]">
+              We believe creativity isn&apos;t just an extra subject — it&apos;s a way to learn, communicate and imagine new possibilities. JaaDeX brings
+              technology and storytelling together so learners can become makers, not just viewers.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-[11px] md:justify-end max-md:mt-1.5">
+            <ButtonLink href="/platform">Discover our platform →</ButtonLink>
+            <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration" variant="light">Partner with JaaDeX</ButtonLink>
+          </div>
+        </Container>
+      </section> */}
 
       <Section>
         <Container>
-          <SectionHeading eyebrow="What we're building" title="A growing creative ecosystem." description="Our work spans learning tools, school implementation, original content and events that connect people with creative skills." />
+          <SectionHeading eyebrow="Creative learning paths" title="Find your next big idea." description="Flexible learning experiences for young creators, educators and aspiring filmmakers. Start with curiosity and grow your creative skills step by step." />
           <FeatureGrid>
-            <FeatureCard icon={<Icon name="book" size={32} />} title="Creative education" description="Learning activities that use animation and storytelling to make ideas more visual and engaging." href="/schools" />
-            <FeatureCard icon={<Icon name="clapperboard" size={32} />} title="Animation & AI creativity" description="Exploring creative production workflows, visual narratives and emerging filmmaking tools." href="/projects" />
-            <FeatureCard icon={<Icon name="sprout" size={32} />} title="Community & events" description="Workshops and collaborative experiences for students, educators and creative professionals." href="/events" />
+            <CourseCard
+              tone="peach"
+              imageSrc="/assets/animation.webp"
+              imageAlt="Animation Foundations — colourful illustrated frames"
+              meta="For students"
+              pill="Create"
+              title="Animation Foundations"
+              description="Explore frames, movement, visual storytelling and the joy of making your own animation."
+              footerNote="Learn through projects"
+              footerIcon={<Icon name="puzzle" size={15} />}
+              href="/contact?interest=Animation%20Foundations"
+              linkLabel="Enquire →"
+            />
+            <CourseCard
+              tone="mint"
+              imageSrc="/assets/story-screen.jpeg"
+              imageAlt="Story to Screen — storyboards and visual planning"
+              meta="For storytellers"
+              pill="Imagine"
+              title="Story to Screen"
+              description="Shape an idea into a story with characters, scenes, storyboards and a clear creative vision."
+              footerNote="Build your story"
+              footerIcon={<Icon name="pencil" size={15} />}
+              href="/contact?interest=Story%20to%20Screen"
+              linkLabel="Enquire →"
+            />
+            <CourseCard
+              tone="lilac"
+              imageSrc="/assets/ai-filmmaking.jpg"
+              imageAlt="AI Filmmaking Studio — cinema-style creative workflow"
+              meta="For future creators"
+              pill="Explore AI"
+              title="AI Filmmaking Studio"
+              description="Explore AI-assisted ideation, script development, visual creation, video workflows and editing."
+              footerNote="Idea to film"
+              footerIcon={<Icon name="clapperboard" size={15} />}
+              href="/contact?interest=AI%20Filmmaking%20Studio"
+              linkLabel="Enquire →"
+            />
           </FeatureGrid>
         </Container>
       </Section>
 
-      <CalloutBand title="Have an idea you'd love to bring to life? ✨" description="Let's explore how JaaDeX can support your school, creative project, workshop or collaboration.">
-        <ButtonLink href="/contact">Start a conversation →</ButtonLink>
-        <ButtonLink href="/projects" variant="light">Explore projects</ButtonLink>
-      </CalloutBand>
 
       <Section id="faq">
         <Container className="max-w-[900px]">
           <SectionHeading eyebrow="Good questions" title="Get to know JaaDeX" description="A few quick answers about our platform, school work, projects and events." />
           <FaqAccordion items={faqs} />
+        </Container>
+      </Section>
+
+      <Section topless>
+        <Container>
+          <div className="relative grid items-center gap-7 overflow-hidden rounded-[28px] bg-midnight px-7 py-10 text-white md:grid-cols-[1.4fr_.6fr] md:px-12 md:py-14">
+            <div aria-hidden="true" className="pointer-events-none absolute -top-24 -right-24 size-72 rounded-full bg-royal/40 blur-3xl" />
+            <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 -left-16 size-72 rounded-full bg-orange/25 blur-3xl" />
+            <div className="relative">
+              <h2 className="mb-3 font-display text-[clamp(27px,3.6vw,40px)] leading-[1.12] font-black tracking-[-1.2px]">
+                Ready to turn &ldquo;what if?&rdquo; into &ldquo;look what I made!&rdquo;
+              </h2>
+              <p className="max-w-[620px] leading-[1.7] text-[#d6e2ff]">
+                Bring JaaDeX into your classroom, explore a creative learning path or start a conversation about collaboration.
+              </p>
+            </div>
+            <div className="relative flex md:justify-end">
+              <ButtonLink href="/contact">Let&apos;s create together ↗</ButtonLink>
+            </div>
+          </div>
         </Container>
       </Section>
     </>

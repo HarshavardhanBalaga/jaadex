@@ -11,5 +11,5 @@ export const navigation = [
   { label: "About", href: "/about" },
   { label: "Schools", href: "/schools" },
   { label: "Projects", href: "/projects" },
-  { label: "Events", href: "/events" },
+  { label: "Workshops", href: "/workshops" },
 ];
