@@ -29,6 +29,82 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## MongoDB Atlas setup (Mongoose)
+
+One shared Atlas cluster/URI format for every environment. The database name
+is what separates environments — it always comes from env config, never from
+hardcoded strings.
+
+| Variable | Purpose | Example |
+| --- | --- | --- |
+| `MONGODB_URI` | Atlas connection string (server-only, never log it) | `mongodb+srv://<username>:<password>@<cluster-url>/` |
+| `MONGODB_DB_NAME` | Database for the current environment | `jaadex_development` |
+| `NODE_ENV` | Environment indicator (set by Next.js / test runner) | `development` |
+
+Environment -> database:
+
+| `NODE_ENV` | `MONGODB_DB_NAME` | Source |
+| --- | --- | --- |
+| `development` | `jaadex_development` | `.env.development` (local only) |
+| `production` | `jaadex_production` | host secret manager (Vercel, etc.) |
+| `test` | `jaadex_test` | `.env.test` (local only) |
+
+### Local setup
+
+```bash
+cp .env.example .env.development
+# edit .env.development with your real Atlas URI (keep MONGODB_DB_NAME=jaadex_development)
+npm run dev
+```
+
+### Production (Vercel or similar)
+
+Set these as secrets in the hosting provider — do not commit a `.env.production` file:
+
+* `MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-url>/`
+* `MONGODB_DB_NAME=jaadex_production`
+
+### Safety guards
+
+`src/lib/mongodb-config.ts` fails fast when:
+
+* `MONGODB_URI` or `MONGODB_DB_NAME` is missing/empty.
+* `NODE_ENV` is not `development | production | test`.
+* The DB name does not match the env (e.g. production with `*test*`, dev/test with `*prod*`).
+* Tests run against a name that does not contain `test`.
+
+Startup logs only `Connected to <dbName> in <env>` — never the URI.
+
+### Usage (server-only)
+
+```ts
+import { connectToDatabase } from "@/lib/mongodb";
+
+export async function GET() {
+  await connectToDatabase();
+  // ... use mongoose models
+}
+```
+
+Never import `@/lib/mongodb` or `@/lib/mongodb-config` from `"use client"` code,
+and never prefix Mongo vars with `NEXT_PUBLIC_`.
+
+### Verify
+
+```bash
+npm test            # env-guard unit tests (no Atlas needed)
+npm run verify:mongo
+npm run lint
+npx tsc --noEmit
+npm run dev         # then GET http://localhost:3000/api/health
+```
+
+Expected health response:
+
+```json
+{ "status": "ok", "ok": true, "env": "development", "dbName": "jaadex_development" }
+```
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
