@@ -25,7 +25,7 @@ export function Footer() {
             <h2 className={columnTitle}>Our work</h2>
             <Link className={columnLink} href="/schools">School Animation Learning</Link>
             <Link className={columnLink} href="/projects">Creative Projects</Link>
-            <Link className={columnLink} href="/events">Workshops &amp; Events</Link>
+            <Link className={columnLink} href="/workshops">Workshops</Link>
           </div>
           <div className="hidden max-md:block lg:block">
             <h2 className={columnTitle}>Connect</h2>

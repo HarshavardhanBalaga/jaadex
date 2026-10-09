@@ -5,7 +5,7 @@ type ButtonLinkProps = {
   href: string;
   children: ReactNode;
   variant?: "primary" | "dark" | "light";
-  size?: "normal" | "small";
+  size?: "normal" | "small" | "compact";
   className?: string;
 };
 
@@ -16,8 +16,9 @@ const variants = {
 };
 
 const sizes = {
-  normal: "px-5 py-[13px]",
+  normal: "px-5 py-[10px] text-[15px]",
   small: "px-3.5 py-2.5 text-xs",
+  compact: "px-4 py-[10px] text-[13px]",
 };
 
 export function ButtonLink({ href, children, variant = "primary", size = "normal", className = "" }: ButtonLinkProps) {
