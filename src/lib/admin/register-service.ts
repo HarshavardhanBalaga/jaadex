@@ -66,7 +66,18 @@ export async function registerBootstrap(email: string, password: string): Promis
       adminId = created._id;
     } catch (err: unknown) {
       if (typeof err === "object" && err !== null && "code" in err && (err as { code: number }).code === 11000) {
-        return { outcome: "email_taken" };
+        // Log only the index name — never the colliding values.
+        const keyPattern = err !== null && typeof err === "object" && "keyPattern" in err
+          ? (err as { keyPattern?: Record<string, unknown> }).keyPattern ?? {}
+          : {};
+        console.error(`[admin-auth][register] duplicate key: ${JSON.stringify(keyPattern)}`);
+        // Only an email collision means "already registered". Any other
+        // duplicate (e.g. a stray index) must surface as unavailable, never
+        // as a misleading email_taken.
+        if (keyPattern !== null && typeof keyPattern === "object" && "email" in keyPattern) {
+          return { outcome: "email_taken" };
+        }
+        throw err;
       }
       throw err;
     }

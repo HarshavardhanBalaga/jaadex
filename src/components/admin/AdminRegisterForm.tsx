@@ -64,6 +64,7 @@ export function AdminRegisterForm() {
 
   async function submitDetails(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setError("");
     setInfo("");
     const parsed = registerSchema.safeParse({ email, password, confirmPassword: confirm });
@@ -89,6 +90,7 @@ export function AdminRegisterForm() {
 
   async function submitOtp(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setError("");
     setBusy(true);
     try {

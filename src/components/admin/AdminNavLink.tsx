@@ -22,10 +22,14 @@ export function AdminNavLink({ onNavigate }: { onNavigate?: () => void }) {
         try {
           const me = await fetch("/api/admin/auth/me", { credentials: "include" });
           if (!cancelled && me.ok) {
-            setState("admin");
-            return;
+            const d = (await me.json().catch(() => null)) as { authenticated?: boolean } | null;
+            if (d && d.authenticated === true) {
+              setState("admin");
+              return;
+            }
+            // 200 + authenticated:false (or unreadable body) simply means logged out.
           }
-          // 401/403 here simply means "not logged in" — fall through.
+          // fall through to status check
         } catch {
           // Network failure: fall through to status check.
         }

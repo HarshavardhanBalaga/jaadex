@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getCsrfToken, clearCsrfCache } from "@/lib/admin-client/auth-fetch";
 
 async function postJson(url: string, body: unknown, retried = false): Promise<{ ok: boolean; data: Record<string, unknown> }> {
@@ -46,8 +47,17 @@ export function AdminLoginForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  // First-run setup hint: true when no active admin exists yet. Driven only
+  // by the already-public register/status flag — reveals nothing per-email.
+  const [showSetup, setShowSetup] = useState(false);
   useEffect(() => {
     getCsrfToken().catch(() => undefined);
+    fetch("/api/admin/auth/register/status", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d: { registered?: boolean }) => {
+        if (d && d.registered === false) setShowSetup(true);
+      })
+      .catch(() => undefined);
   }, []);
   function backToLogin(e: React.MouseEvent) {
     e.preventDefault();
@@ -57,6 +67,7 @@ export function AdminLoginForm() {
   }
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
@@ -82,6 +93,7 @@ export function AdminLoginForm() {
   }
   async function submitForgot(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError("");
     setInfo("");
@@ -105,6 +117,7 @@ export function AdminLoginForm() {
   }
   async function submitReset(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
@@ -203,6 +216,12 @@ export function AdminLoginForm() {
     // method="post" is defense-in-depth: even a native (non-React) submission
     // must never serialize credentials into the URL query string.
     <form onSubmit={submit} method="post" action="/api/admin/auth/login" className="grid gap-3.5">
+      {showSetup ? (
+        <div role="status" className="rounded-xl bg-[#e3ecff] px-3 py-2.5 text-[13px] font-bold text-royal">
+          No administrator account exists yet —{" "}
+          <Link href="/admin/register" className="underline">complete the initial setup first →</Link>
+        </div>
+      ) : null}
       <div className="grid gap-1.5">
         <label htmlFor="admin-email" className="text-xs font-black text-[#2b3b78]">Email *</label>
         <input id="admin-email" type="email" required autoComplete="username" value={email}
@@ -218,9 +237,12 @@ export function AdminLoginForm() {
         className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-royal px-5 py-[13px] text-center font-black text-white shadow-pop-royal transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none">
         {busy ? "Signing in…" : "Sign in →"}
       </button>
-      <button type="button" onClick={() => { setError(""); setInfo(""); setStep("forgot"); }} className="text-center text-[13px] font-bold text-royal hover:underline">
-        Forgot password?
-      </button>
+      <div className="flex items-center justify-between gap-3 text-[13px] font-bold text-royal">
+        <button type="button" onClick={() => { setError(""); setInfo(""); setStep("forgot"); }} className="hover:underline">
+          Forgot password?
+        </button>
+        <Link href="/admin/register" className="hover:underline">Create account</Link>
+      </div>
     </form>
   );
 }

@@ -32,10 +32,17 @@ export async function POST(request: Request) {
       return ok({ message: "A verification code was already sent.", resendAvailableInSeconds: result.resendAvailableInSeconds });
     }
     if (result.outcome === "email_taken") {
+      // Outcome only — never log the email address.
+      console.error("[admin-auth][register] outcome: email_taken");
       return fail("email_taken", "This email is already registered. Please log in.", 409);
     }
+    if (result.outcome === "resend_limit") {
+      return fail("rate_limited", "Too many codes sent. Try again later.", 429);
+    }
+    console.error("[admin-auth][register] outcome:", result.outcome);
     return fail("registration_unavailable", "Registration is unavailable.", 403);
-  } catch {
+  } catch (err) {
+    console.error("[admin-auth][register] unavailable:", err instanceof Error ? err.message : err);
     return fail("auth_unavailable", "Service temporarily unavailable.", 503);
   }
 }

@@ -166,4 +166,18 @@ describe("auth-url-leakage", () => {
     const registerPage = src("src/app/admin/register/page.tsx");
     assert.match(registerPage, /AdminRegisterForm/, "public register page still renders the form");
   });
+
+  it("10. logged-out session checks stay quiet and setup hint leaks nothing per-email", () => {
+    const me = src("src/app/api/admin/auth/me/route.ts");
+    assert.match(me, /authenticated:\s*false/, "/me answers unauthenticated without 401 noise");
+    assert.match(me, /authenticated:\s*true/, "/me still flags real sessions");
+    assert.match(me, /forbidden/, "insufficient role is still a real 403");
+    const nav = src("src/components/admin/AdminNavLink.tsx");
+    assert.match(nav, /authenticated\s*===\s*true/, "nav grants Dashboard only on an authenticated flag");
+    const form = src("src/components/admin/AdminLoginForm.tsx");
+    assert.match(form, /register\/status/, "setup hint is driven by the public status flag");
+    assert.match(form, /initial setup first/, "zero-admin setup banner exists");
+    assert.match(form, /\/admin\/register/, "banner links to registration");
+    assert.match(form, /Invalid email or password/, "login failure stays generic (no per-email oracle)");
+  });
 });

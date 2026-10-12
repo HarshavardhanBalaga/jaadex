@@ -23,6 +23,7 @@ export function ContactForm({ initialInterest = "" }: { initialInterest?: string
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError("");
     setFieldErrors({});
