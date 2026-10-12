@@ -22,6 +22,10 @@
     "react-dom": "19.2.8",
     "remixicon": "^4.9.1",
     "server-only": "^0.0.1",
+    "survey-core": "^3.2.0",
+    "survey-creator-core": "^3.2.0",
+    "survey-creator-react": "^3.2.0",
+    "survey-react-ui": "^3.2.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

@@ -101,7 +101,12 @@ export default async function AdminDashboardPage() {
           </dl>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-paper px-5 py-4">
             <p className="text-[12px] text-muted">Sessions expire automatically. Log out when finished.</p>
-            <AdminLogoutButton />
+            <div className="flex flex-wrap items-center gap-3">
+              <a href="/admin/survey-playground" className="text-[13px] font-black text-royal hover:underline">
+                SurveyJS Playground →
+              </a>
+              <AdminLogoutButton />
+            </div>
           </div>
         </div>
         <div className="mt-6 overflow-hidden rounded-[25px] border border-line bg-white shadow-[0_12px_30px_rgb(20_60_160/0.06)]">

@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import "remixicon/fonts/remixicon.css";
+// SurveyJS PoC styles. Next requires third-party global CSS here; classes are
+// .sd-/.svc-prefixed so they only affect the SurveyJS playground components.
+import "survey-core/survey-core.css";
+import "survey-creator-core/survey-creator-core.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { siteConfig } from "@/lib/site";
