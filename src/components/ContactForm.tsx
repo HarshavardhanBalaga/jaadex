@@ -29,7 +29,7 @@ export function ContactForm({ initialInterest = "" }: { initialInterest?: string
   )}`;
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} method="post">
       <FormRow label="Your name *" htmlFor="name"><input className={fieldClass} id="name" name="name" required value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="Enter your name" /></FormRow>
       <FormRow label="Email address *" htmlFor="email"><input className={fieldClass} id="email" name="email" type="email" required value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="you@example.com" /></FormRow>
       <FormRow label="School / organization" htmlFor="organization"><input className={fieldClass} id="organization" name="organization" value={form.organization} onChange={(e) => update("organization", e.target.value)} placeholder="Organization name (optional)" /></FormRow>

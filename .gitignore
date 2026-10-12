@@ -31,10 +31,13 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files — secrets stay local / in the host secret manager.
-# Placeholder templates (.env.example, .env.development, .env.test) are safe to commit.
+# Only .env.example (placeholders) is committed. Real values in .env* are ignored.
 .env
 .env.local
 .env.*.local
+.env.development
+.env.test
+!.env.example
 
 # vercel
 .vercel

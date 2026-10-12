@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/lib/__tests__/mongodb-config.test.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test src/lib/__tests__/mongodb-config.test.ts src/lib/admin/__tests__/admin-auth.test.ts src/lib/admin/__tests__/auth-url-leakage.test.ts",
     "verify:mongo": "node --experimental-strip-types scripts/verify-mongo.mts"
   },
   "dependencies": {
@@ -20,11 +21,14 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "remixicon": "^4.9.1",
+    "server-only": "^0.0.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

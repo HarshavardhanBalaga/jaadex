@@ -8,6 +8,7 @@ import { navigation } from "@/lib/site";
 import { Brand } from "./Brand";
 import { ButtonLink } from "./ButtonLink";
 import { Container } from "./Container";
+import { AdminNavLink } from "./admin/AdminNavLink";
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -43,6 +44,8 @@ export function Header() {
                 </Link>
               );
             })}
+
+            <AdminNavLink onNavigate={() => setMenuOpen(false)} />
           </nav>
           <div className="flex shrink-0 items-center gap-2">
             <ButtonLink
