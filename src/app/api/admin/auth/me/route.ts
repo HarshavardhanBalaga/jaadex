@@ -27,6 +27,7 @@ export async function GET() {
     return ok({
       authenticated: true,
       admin: {
+        name: a.name ?? "",
         email: a.email,
         role: a.role,
         status: a.status,

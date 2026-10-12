@@ -7,15 +7,27 @@
 
 let csrfCache: string | null = null;
 let refreshPromise: Promise<boolean> | null = null;
+// Shared in-flight issuance: concurrent callers (e.g. StrictMode remounts)
+// must share one GET /csrf instead of racing two token rotations.
+let csrfInflight: Promise<string> | null = null;
 
 export async function getCsrfToken(): Promise<string> {
   if (csrfCache) return csrfCache;
-  const res = await fetch("/api/admin/auth/csrf", { credentials: "include" });
-  if (!res.ok) throw new Error("csrf_unavailable");
-  const data = (await res.json()) as { csrfToken?: string };
-  if (!data.csrfToken) throw new Error("csrf_unavailable");
-  csrfCache = data.csrfToken;
-  return csrfCache;
+  if (!csrfInflight) {
+    csrfInflight = (async () => {
+      const res = await fetch("/api/admin/auth/csrf", { credentials: "include" });
+      if (!res.ok) throw new Error("csrf_unavailable");
+      const data = (await res.json()) as { csrfToken?: string };
+      if (!data.csrfToken) throw new Error("csrf_unavailable");
+      csrfCache = data.csrfToken;
+      return csrfCache;
+    })();
+    // Clear the slot (success or failure) without swallowing the result.
+    void csrfInflight.catch(() => undefined).finally(() => {
+      csrfInflight = null;
+    });
+  }
+  return csrfInflight;
 }
 
 export function clearCsrfCache(): void {

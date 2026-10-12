@@ -7,6 +7,7 @@ import "server-only";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { getAdminAuthConfig } from "./auth-config";
+import { originAllowed } from "../csrf-origin";
 import { CSRF_COOKIE_NAME } from "./cookies";
 
 export function newCsrfToken(): string {
@@ -21,31 +22,6 @@ function safeEqual(a: string, b: string): boolean {
   } catch {
     return false;
   }
-}
-
-function originAllowed(request: Request, appUrl: string, clientUrl: string): boolean {
-  const allowed = new Set(
-    [appUrl, clientUrl].map((u) => u.replace(/\/+$/, "").toLowerCase()),
-  );
-  const origin = request.headers.get("origin")?.trim().toLowerCase();
-  if (origin) return allowed.has(origin.replace(/\/+$/, ""));
-  const referer = request.headers.get("referer")?.trim().toLowerCase();
-  if (referer) {
-    try {
-      const u = new URL(referer);
-      return [...allowed].some((a) => {
-        try {
-          const au = new URL(a);
-          return au.origin.toLowerCase() === u.origin.toLowerCase();
-        } catch {
-          return false;
-        }
-      });
-    } catch {
-      return false;
-    }
-  }
-  return false;
 }
 
 /** Returns null when valid, otherwise a machine code for 403. */

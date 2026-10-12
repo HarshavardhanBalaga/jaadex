@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     });
   }
   try {
-    const result = await registerBootstrap(parsed.data.email, parsed.data.password);
+    const result = await registerBootstrap(parsed.data.name, parsed.data.email, parsed.data.password);
     if (result.outcome === "created") {
       return ok({ message: "Verification code sent. Check the administrator inbox.", resendAvailableInSeconds: result.resendAvailableInSeconds }, 201);
     }

@@ -38,8 +38,9 @@ export async function bootstrapStatus(): Promise<{ registered: boolean; registra
   return { registered, registrationOpen: Boolean(c.adminOtpEmail) };
 }
 
-export async function registerBootstrap(email: string, password: string): Promise<RegisterOutcome> {
+export async function registerBootstrap(name: string, email: string, password: string): Promise<RegisterOutcome> {
   const c = getAdminAuthConfig();
+  const trimmedName = name.trim().slice(0, 80);
   const normalized = email.trim().toLowerCase();
   await connectToDatabase();
   const existing = await AdminModel.findOne({ email: normalized })
@@ -57,6 +58,7 @@ export async function registerBootstrap(email: string, password: string): Promis
     const passwordHash = await hashPassword(password);
     try {
       const created = await AdminModel.create({
+        name: trimmedName,
         email: normalized,
         passwordHash,
         role: "admin",

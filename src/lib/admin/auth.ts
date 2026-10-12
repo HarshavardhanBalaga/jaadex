@@ -10,7 +10,7 @@ import { AdminSessionModel } from "@/models/AdminSession";
 import { verifyAccessToken } from "./jwt";
 
 export interface AdminContext {
-  admin: Pick<AdminDoc, "_id" | "email" | "role" | "status" | "emailVerifiedAt" | "lastLoginAt" | "createdAt">;
+  admin: Pick<AdminDoc, "_id" | "name" | "email" | "role" | "status" | "emailVerifiedAt" | "lastLoginAt" | "createdAt">;
   familyId: string;
 }
 
@@ -50,6 +50,7 @@ export async function requireAdminFromToken(
     ctx: {
       admin: {
         _id: admin._id,
+        name: admin.name ?? "",
         email: admin.email,
         role: admin.role,
         status: admin.status,

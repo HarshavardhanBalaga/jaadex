@@ -156,7 +156,7 @@ describe("auth-url-leakage", () => {
     );
     assert.equal(loginSchema.safeParse({ email: "admin@example.com", password: "" }).success, false);
     assert.equal(
-      registerSchema.safeParse({ email: "admin@example.com", password: "StrongPass123", confirmPassword: "StrongPass123" }).success,
+      registerSchema.safeParse({ name: "Test Admin", email: "admin@example.com", password: "StrongPass123", confirmPassword: "StrongPass123" }).success,
       true,
     );
     assert.equal(verifyOtpSchema.safeParse({ email: "admin@example.com", otp: "123456" }).success, true);
@@ -174,6 +174,9 @@ describe("auth-url-leakage", () => {
     assert.match(me, /forbidden/, "insufficient role is still a real 403");
     const nav = src("src/components/admin/AdminNavLink.tsx");
     assert.match(nav, /authenticated\s*===\s*true/, "nav grants Dashboard only on an authenticated flag");
+    // Instant first paint comes from a boolean display hint — never a token.
+    assert.match(nav, /sessionStorage/, "nav caches a display hint for instant paint");
+    assert.doesNotMatch(nav, /sessionStorage[^;]*[Tt]oken/, "display hint must never hold a token");
     const form = src("src/components/admin/AdminLoginForm.tsx");
     assert.match(form, /register\/status/, "setup hint is driven by the public status flag");
     assert.match(form, /initial setup first/, "zero-admin setup banner exists");

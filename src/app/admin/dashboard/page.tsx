@@ -24,6 +24,7 @@ function fmt(value: Date | string | null): string {
 
 /** Server-protected: proxy redirect is UX only; this check is the boundary. */
 export default async function AdminDashboardPage() {
+  let name = "";
   let email = "";
   let role = "";
   let status = "";
@@ -31,7 +32,7 @@ export default async function AdminDashboardPage() {
   let lastLoginAt: Date | null = null;
   let verifiedAt: Date | null = null;
   // Allowlisted login tracking: who holds an account + when each last logged in.
-  let allAdmins: Array<{ email: string; role: string; status: string; lastLoginAt: Date | null; createdAt: Date | null }> = [];
+  let allAdmins: Array<{ name: string; email: string; role: string; status: string; lastLoginAt: Date | null; createdAt: Date | null }> = [];
   // Demo & contact enquiries: newest first. Admin eyes only — this page is server-guarded.
   let requests: Array<{ name: string; email: string; organization: string; interest: string; message: string; status: string; createdAt: Date | null }> = [];
   try {
@@ -39,6 +40,7 @@ export default async function AdminDashboardPage() {
     const store = await cookies();
     const checked = await requireAdminFromToken(store.get(c.accessCookieName)?.value ?? null);
     if (!checked.ok) redirect("/admin/login");
+    name = checked.ctx.admin.name ?? "";
     email = checked.ctx.admin.email;
     role = checked.ctx.admin.role;
     status = checked.ctx.admin.status;
@@ -46,10 +48,11 @@ export default async function AdminDashboardPage() {
     lastLoginAt = checked.ctx.admin.lastLoginAt ? new Date(checked.ctx.admin.lastLoginAt) : null;
     verifiedAt = checked.ctx.admin.emailVerifiedAt ? new Date(checked.ctx.admin.emailVerifiedAt) : null;
     const docs = await AdminModel.find({})
-      .select({ email: 1, role: 1, status: 1, lastLoginAt: 1, createdAt: 1 })
+      .select({ name: 1, email: 1, role: 1, status: 1, lastLoginAt: 1, createdAt: 1 })
       .sort({ createdAt: 1 })
       .lean();
     allAdmins = docs.map((d) => ({
+      name: d.name ?? "—",
       email: d.email,
       role: d.role,
       status: d.status,
@@ -74,6 +77,7 @@ export default async function AdminDashboardPage() {
     redirect("/admin/login");
   }
   const rows: Array<[string, string]> = [
+    ["Name", name || "—"],
     ["Email", email],
     ["Role", role],
     ["Account status", status],
@@ -118,6 +122,7 @@ export default async function AdminDashboardPage() {
             <table className="w-full min-w-[560px] text-left text-[13px]">
               <thead>
                 <tr className="border-b border-line text-[11px] font-black tracking-[1px] text-muted uppercase">
+                  <th className="px-5 py-3">Name</th>
                   <th className="px-5 py-3">Email</th>
                   <th className="px-5 py-3">Role</th>
                   <th className="px-5 py-3">Status</th>
@@ -128,6 +133,7 @@ export default async function AdminDashboardPage() {
               <tbody className="divide-y divide-line">
                 {allAdmins.map((a) => (
                   <tr key={a.email}>
+                    <td className="px-5 py-3 font-bold text-navy break-all">{a.name}</td>
                     <td className="px-5 py-3 font-bold text-navy break-all">{a.email}</td>
                     <td className="px-5 py-3 text-muted">{a.role}</td>
                     <td className="px-5 py-3 text-muted">{a.status}</td>

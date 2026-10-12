@@ -6,6 +6,7 @@ export type AdminStatus = "pending" | "active" | "disabled";
 
 export interface AdminDoc extends Document {
   _id: Types.ObjectId;
+  name: string;
   email: string;
   passwordHash: string;
   role: AdminRole;
@@ -20,6 +21,12 @@ export interface AdminDoc extends Document {
 
 const AdminSchema = new Schema<AdminDoc>(
   {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 80,
+    },
     email: {
       type: String,
       required: true,

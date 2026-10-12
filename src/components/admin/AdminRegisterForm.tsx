@@ -43,6 +43,7 @@ function errMsg(data: Record<string, unknown>, fallback: string): string {
 export function AdminRegisterForm() {
   const router = useRouter();
   const [step, setStep] = useState<"details" | "otp" | "done">("details");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -67,7 +68,7 @@ export function AdminRegisterForm() {
     if (busy) return;
     setError("");
     setInfo("");
-    const parsed = registerSchema.safeParse({ email, password, confirmPassword: confirm });
+    const parsed = registerSchema.safeParse({ name, email, password, confirmPassword: confirm });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Check the fields.");
       return;
@@ -148,6 +149,11 @@ export function AdminRegisterForm() {
   return (
     // method="post" blocks native GET serialization of email/password into the URL.
     <form onSubmit={submitDetails} method="post" action="/api/admin/auth/register" className="grid gap-3.5">
+      <div className="grid gap-1.5">
+        <label htmlFor="reg-name" className="text-xs font-black text-[#2b3b78]">Full name *</label>
+        <input id="reg-name" type="text" required autoComplete="name" maxLength={80} value={name}
+          onChange={(e) => setName(e.target.value)} placeholder="Your full name" className={inputClass} />
+      </div>
       <div className="grid gap-1.5">
         <label htmlFor="reg-email" className="text-xs font-black text-[#2b3b78]">Administrator email *</label>
         <input id="reg-email" type="email" required autoComplete="username" value={email}
