@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { ButtonLink } from "@/components/ButtonLink";
-import { CalloutBand } from "@/components/CalloutBand";
 import { ClosingCard } from "@/components/ClosingCard";
 import { Container } from "@/components/Container";
 import { Eyebrow } from "@/components/Eyebrow";
 import Image from "next/image";
+import { connectToDatabase } from "@/lib/mongodb";
+import { WorkshopModel } from "@/models/Workshop";
+
+export const dynamic = "force-dynamic";
 
 type PhotoCardProps = {
   src: string;
@@ -37,7 +40,84 @@ import { SectionHeading } from "@/components/SectionHeading";
 
 export const metadata: Metadata = { title: "Workshops", description: "JaaDeX workshops — animation, storytelling, AI filmmaking, creative technology, and industry programs for students, teachers, and creators." };
 
-export default function WorkshopsPage() {
+type CalendarWorkshop = {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  location: string;
+  image: string;
+  completed: boolean;
+};
+
+function formatWorkshopDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+  } catch {
+    return "—";
+  }
+}
+
+/* eslint-disable @next/next/no-img-element */
+function CalendarWorkshopCard({ workshop }: { workshop: CalendarWorkshop }) {
+  return (
+    <article className="relative flex flex-col overflow-hidden rounded-[25px] border border-line bg-paper shadow-[0_8px_22px_rgb(20_60_160/0.05)]">
+      <div className="relative h-52 overflow-hidden">
+        {/* Data-URL image: plain img (next/image does not accept data: URLs). */}
+        <img src={workshop.image} alt={workshop.title} className="h-full w-full object-cover" />
+        <span
+          className={`absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-black tracking-[1px] text-white uppercase ${
+            workshop.completed ? "bg-[#34a334]" : "bg-royal"
+          }`}
+        >
+          <span className="size-1.5 rounded-full bg-white" aria-hidden="true" /> {workshop.completed ? "Completed" : "Upcoming"}
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col p-6 md:p-7">
+        <h3 className="font-display text-[clamp(22px,2.5vw,28px)] leading-[1.1] font-black tracking-[-1px] text-navy">{workshop.title}</h3>
+        <p className="mt-2 text-[13px] font-bold text-royal">
+          {formatWorkshopDate(workshop.date)} · {workshop.location}
+        </p>
+        <p className="mt-3 text-[14px] leading-[1.7] text-muted">{workshop.description}</p>
+        <div className="mt-5">
+          <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration" variant="dark">Ask about this workshop ↗</ButtonLink>
+        </div>
+      </div>
+    </article>
+  );
+}
+/* eslint-enable @next/next/no-img-element */
+
+async function loadCalendarWorkshops(): Promise<CalendarWorkshop[]> {
+  try {
+    await connectToDatabase();
+    const docs = await WorkshopModel.find({})
+      .select({ title: 1, description: 1, date: 1, location: 1, image: 1 })
+      .sort({ date: -1 })
+      .limit(12)
+      .lean();
+    return docs.map((d) => {
+      const iso = d.date instanceof Date ? d.date.toISOString() : String(d.date);
+      return {
+        id: String(d._id),
+        title: d.title,
+        description: d.description,
+        date: iso,
+        location: d.location,
+        image: d.image,
+        completed: new Date(iso).getTime() < Date.now(),
+      };
+    });
+  } catch {
+    // DB down / not configured — section degrades to the static fallback card.
+    return [];
+  }
+}
+
+export default async function WorkshopsPage() {
+  const calendarWorkshops = await loadCalendarWorkshops();
+  // The featured (completed) Amaravati workshop always renders, so include it in the count.
+  const listedCount = calendarWorkshops.length + 1;
   return (
     <>
       {/* Hero */}
@@ -77,9 +157,17 @@ export default function WorkshopsPage() {
       <Section>
         <Container>
           <div id="workshops" className="scroll-mt-24">
-            <SectionHeading eyebrow="Workshops" title="Currently on the calendar." description="Only one workshop listed for now — more programs will appear here as they are announced." />
+            <SectionHeading
+              eyebrow="Workshops"
+              title="Currently on the calendar."
+              description={
+                `${listedCount} program${listedCount === 1 ? "" : "s"} listed right now — more will appear here as they are announced.`
+              }
+            />
           </div>
           <div className="mx-auto grid max-w-[960px] grid-cols-1 gap-[17px] md:grid-cols-2">
+            {/* Featured (completed) workshop — always rendered so it stays visible
+                even after new workshops are published from the admin dashboard. */}
             <article className="relative flex flex-col overflow-hidden rounded-[25px] border border-line bg-paper shadow-[0_8px_22px_rgb(20_60_160/0.05)]">
               <div className="relative h-52 overflow-hidden">
                 <Image src="/assets/workshop-showcase.jpg" alt="Amaravati Creative Economy Workshop gathering" fill className="object-cover" sizes="(max-width: 768px) 100vw, 480px" />
@@ -89,25 +177,30 @@ export default function WorkshopsPage() {
               </div>
               <div className="flex flex-1 flex-col p-6 md:p-7">
                 <div className="text-xs font-black tracking-[1.4px] text-orange uppercase">Featured Workshop</div>
-              <h3 className="my-2 font-display text-[clamp(22px,2.5vw,28px)] leading-[1.1] font-black tracking-[-1px] text-navy">Amaravati Creative Economy Workshop</h3>
-              <p className="text-[13px] font-bold text-royal">25 September 2026 · RTIH, Mangalagiri, Andhra Pradesh</p>
-              <p className="mt-3 text-[14px] leading-[1.7] text-muted">
-                A platform bringing together young creators, innovators, storytellers,
-                artists, entrepreneurs, and technology enthusiasts to explore new
-                opportunities in the creative economy.
-              </p>
-              <div className="mt-5">
-                <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration" variant="dark">Ask about this workshop ↗</ButtonLink>
-              </div>
-              </div>
-            </article>
-            <article className="relative flex flex-col overflow-hidden rounded-[25px] border border-dashed border-line bg-paper/60">
-              <div className="relative grid h-52 place-items-center overflow-hidden bg-[#eef3ff] text-[40px]" aria-hidden="true">✦</div>
-              <div className="p-6 text-center md:p-8">
-                <h3 className="font-display text-[17px] font-bold text-navy">More workshops coming soon</h3>
-                <p className="mx-auto mt-2 max-w-[420px] text-[13px] leading-[1.7] text-muted">New programs for students, teachers, and creators will be announced here.</p>
+                <h3 className="my-2 font-display text-[clamp(22px,2.5vw,28px)] leading-[1.1] font-black tracking-[-1px] text-navy">Amaravati Creative Economy Workshop</h3>
+                <p className="text-[13px] font-bold text-royal">25 September 2026 · RTIH, Mangalagiri, Andhra Pradesh</p>
+                <p className="mt-3 text-[14px] leading-[1.7] text-muted">
+                  A platform bringing together young creators, innovators, storytellers,
+                  artists, entrepreneurs, and technology enthusiasts to explore new
+                  opportunities in the creative economy.
+                </p>
+                <div className="mt-5">
+                  <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration" variant="dark">Ask about this workshop ↗</ButtonLink>
+                </div>
               </div>
             </article>
+            {calendarWorkshops.map((workshop) => (
+              <CalendarWorkshopCard key={workshop.id} workshop={workshop} />
+            ))}
+            {calendarWorkshops.length === 0 && (
+              <article className="relative flex flex-col overflow-hidden rounded-[25px] border border-dashed border-line bg-paper/60">
+                <div className="relative grid h-52 place-items-center overflow-hidden bg-[#eef3ff] text-[40px]" aria-hidden="true">✦</div>
+                <div className="p-6 text-center md:p-8">
+                  <h3 className="font-display text-[17px] font-bold text-navy">More workshops coming soon</h3>
+                  <p className="mx-auto mt-2 max-w-[420px] text-[13px] leading-[1.7] text-muted">New programs for students, teachers, and creators will be announced here.</p>
+                </div>
+              </article>
+            )}
           </div>
         </Container>
       </Section>

@@ -29,7 +29,7 @@ export default function ContactPage() {
           <div>
             <div className="text-xs font-black tracking-[1.4px] text-orange uppercase">Contact JaaDeX</div>
             <h2 className="my-3 font-display text-[clamp(31px,4vw,45px)] leading-[1.08] font-black tracking-[-1.7px] text-navy">Tell us what you&apos;re imagining.</h2>
-            <p className="mb-[22px] text-[15px] leading-[1.75] text-muted">Use the form to describe your enquiry. Before launch, connect this form to your official company email, CRM or backend so enquiries are received securely.</p>
+            <p className="mb-[22px] text-[15px] leading-[1.75] text-muted">Use the form to describe your enquiry. Your details go straight to the JaaDeX team.</p>
             <InfoCard icon={<Icon name="school" size={25} />} title="Schools & institutions">Ask about animation learning, school implementation and teacher support.</InfoCard>
             <InfoCard icon={<Icon name="clapperboard" size={25} />} title="Creative courses">Ask about AI filmmaking, storytelling and animation learning opportunities.</InfoCard>
             <InfoCard icon={<Icon name="mail" size={25} />} title="Email contact">Current placeholder: hello@jaadex.com. Confirm the official address before publishing.</InfoCard>
