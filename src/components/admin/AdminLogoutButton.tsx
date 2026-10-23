@@ -1,32 +1,28 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getCsrfToken, clearCsrfCache } from "@/lib/admin-client/auth-fetch";
+import { useState } from "react";
+import { adminRequest } from "@/lib/admin-client/admin-api";
+import { clearCsrfCache } from "@/lib/admin-client/auth-fetch";
+import { adminSecondaryButtonClass } from "./admin-ui";
 
 export function AdminLogoutButton() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+
   async function logout() {
     if (busy) return;
     setBusy(true);
-    try {
-      const csrf = await getCsrfToken().catch(() => "");
-      await fetch("/api/admin/auth/logout", {
-        method: "POST",
-        credentials: "include",
-        headers: { "x-csrf-token": csrf },
-      }).catch(() => undefined);
-    } finally {
-      // Logout rotates the CSRF cookie server-side: drop the cached token so
-      // the next login fetches a fresh one instead of 403ing once.
-      clearCsrfCache();
-      router.push("/admin/login");
-    }
+    // The server clears cookies even for expired sessions, so the outcome does not change what happens next.
+    await adminRequest("/api/admin/auth/logout", { method: "POST" });
+    // Logout rotates the CSRF cookie; drop the cached token so the next login fetches a fresh one.
+    clearCsrfCache();
+    router.push("/admin/login");
+    router.refresh();
   }
+
   return (
-    <button type="button" onClick={logout} disabled={busy}
-      className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-line px-4 py-2 text-[13px] text-navy transition-colors hover:border-navy/30 disabled:opacity-60">
+    <button type="button" onClick={logout} disabled={busy} className={adminSecondaryButtonClass}>
       {busy ? "Logging out…" : "Log out"}
     </button>
   );

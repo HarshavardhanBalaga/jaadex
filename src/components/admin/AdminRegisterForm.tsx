@@ -1,180 +1,222 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { registerSchema } from "@/lib/admin/validation";
-import { getCsrfToken, clearCsrfCache } from "@/lib/admin-client/auth-fetch";
+import { useEffect, useState, type FormEvent } from "react";
+import { adminRequest, errorMessage } from "@/lib/admin-client/admin-api";
+import { registerSchema, verifyOtpSchema } from "@/lib/admin/validation";
+import {
+  adminErrorClass,
+  adminInputClass,
+  adminLabelClass,
+  adminLinkClass,
+  adminNoticeClass,
+  adminPrimaryButtonClass,
+  adminSecondaryButtonClass,
+} from "./admin-ui";
 
-const inputClass =
-  "w-full rounded-xl border border-[#cfd9f0] bg-white px-[13px] py-3 text-ink outline-none focus:border-royal focus:ring-[3px] focus:ring-royal/10";
-
-async function postJson(url: string, body: unknown, retried = false) {
-  const csrf = await getCsrfToken();
-  const res = await fetch(url, {
-    method: "POST",
-    credentials: "include",
-    headers: { "content-type": "application/json", "x-csrf-token": csrf },
-    body: JSON.stringify(body),
-  });
-  let data: Record<string, unknown> = {};
-  try {
-    data = (await res.json()) as Record<string, unknown>;
-  } catch {
-    data = {};
-  }
-  // One retry with a fresh token if the cached one predates a rotation.
-  if (!res.ok && !retried) {
-    const code = (data?.error as { code?: string } | undefined)?.code;
-    if (code === "csrf_invalid") {
-      clearCsrfCache();
-      return postJson(url, body, true);
-    }
-  }
-  return { ok: res.ok, data };
+interface RegisterPayload {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
 }
 
-function errMsg(data: Record<string, unknown>, fallback: string): string {
-  if (typeof data?.error === "object" && data.error !== null && "message" in data.error) {
-    return String((data.error as { message: string }).message);
-  }
-  return fallback;
-}
+type Step = "details" | "verify";
 
 export function AdminRegisterForm() {
   const router = useRouter();
-  const [step, setStep] = useState<"details" | "otp" | "done">("details");
+  const [step, setStep] = useState<Step>("details");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
+  // Validated details kept for the verify step, so "resend" can re-send them.
+  const [pending, setPending] = useState<RegisterPayload | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
-  const [closed, setClosed] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+  // null while the public status flag loads; false when registration is closed.
+  const [open, setOpen] = useState<boolean | null>(null);
 
   useEffect(() => {
-    getCsrfToken().catch(() => undefined);
-    fetch("/api/admin/auth/register/status", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { registrationOpen?: boolean }) => {
-        if (d && d.registrationOpen === false) setClosed(true);
-      })
-      .catch(() => undefined);
+    adminRequest<{ registrationOpen?: boolean }>("/api/admin/auth/register/status").then((res) => {
+      setOpen(res.ok ? res.data.registrationOpen !== false : true);
+    });
   }, []);
 
-  async function submitDetails(e: React.FormEvent) {
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = window.setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendIn]);
+
+  async function sendCode(payload: RegisterPayload) {
+    return adminRequest<{ message?: string; resendAvailableInSeconds?: number }>("/api/admin/auth/register", {
+      method: "POST",
+      body: payload,
+    });
+  }
+
+  async function submitDetails(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
-    setError("");
-    setInfo("");
-    const parsed = registerSchema.safeParse({ name, email, password, confirmPassword: confirm });
+    const parsed = registerSchema.safeParse({ name, email, password, confirmPassword });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Check the fields.");
+      setError(parsed.error.issues[0]?.message ?? "Check the highlighted fields.");
       return;
     }
     setBusy(true);
-    try {
-      const { ok, data } = await postJson("/api/admin/auth/register", parsed.data);
-      if (!ok) {
-        setError(errMsg(data, "Registration is unavailable."));
-        const code = (data?.error as { code?: string } | undefined)?.code;
-        if (code === "registration_unavailable") setClosed(true);
-        return;
-      }
-      setInfo("Code sent to the administrator inbox. Enter it below.");
-      setStep("otp");
-    } finally {
-      setBusy(false);
+    setError("");
+    setInfo("");
+    const res = await sendCode(parsed.data);
+    setBusy(false);
+    if (!res.ok) {
+      setError(errorMessage(res.error));
+      return;
     }
+    setPending(parsed.data);
+    setEmail(parsed.data.email);
+    setInfo(res.data.message ?? "Verification code sent. Check the administrator inbox.");
+    setResendIn(res.data.resendAvailableInSeconds ?? 0);
+    setStep("verify");
   }
 
-  async function submitOtp(e: React.FormEvent) {
+  async function resend() {
+    if (busy || resendIn > 0 || !pending) return;
+    setBusy(true);
+    setError("");
+    setInfo("");
+    // Registering again with a pending email re-sends the code (server enforces the cooldown).
+    const res = await sendCode(pending);
+    setBusy(false);
+    if (!res.ok) {
+      setError(errorMessage(res.error));
+      return;
+    }
+    setInfo(res.data.message ?? "A new code was sent.");
+    setResendIn(res.data.resendAvailableInSeconds ?? 0);
+  }
+
+  async function submitOtp(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
-    setError("");
-    setBusy(true);
-    try {
-      const { ok, data } = await postJson("/api/admin/auth/register/verify-otp", {
-        email: email.trim().toLowerCase(),
-        otp: otp.trim(),
-      });
-      if (!ok) {
-        setError(errMsg(data, "Invalid code."));
-        return;
-      }
-      setStep("done");
-      setTimeout(() => {
-        router.push("/admin/login");
-      }, 1200);
-    } finally {
-      setBusy(false);
+    const parsed = verifyOtpSchema.safeParse({ email, otp: otp.trim() });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Enter the 6-8 digit code.");
+      return;
     }
+    setBusy(true);
+    setError("");
+    const res = await adminRequest("/api/admin/auth/register/verify-otp", {
+      method: "POST",
+      body: { email, otp: otp.trim() },
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setError(errorMessage(res.error));
+      return;
+    }
+    router.push("/admin/login");
   }
-  if (closed && step === "details") {
-    return (
-      <div role="status" className="rounded-[13px] bg-[#e3ecff] p-[15px] text-[13px] text-royal">
-        <strong>Registration is closed.</strong>
-        <p className="mt-1 leading-[1.6]">An administrator already exists. Please log in.</p>
-      </div>
-    );
+
+  if (open === false) {
+    return <p role="status" className={adminNoticeClass}>Admin registration is currently closed.</p>;
   }
-  if (step === "done") {
+
+  if (step === "verify") {
     return (
-      <div role="status" className="rounded-[13px] bg-[#e3ecff] p-[15px] text-[13px] text-royal">
-        <strong>Account activated.</strong>
-        <p className="mt-1 leading-[1.6]">Redirecting to login…</p>
-      </div>
-    );
-  }
-  if (step === "otp") {
-    return (
-      // method="post" blocks native GET serialization of the OTP into the URL.
-      <form onSubmit={submitOtp} method="post" action="/api/admin/auth/register/verify-otp" className="grid gap-3.5">
-        {info ? <p role="status" className="rounded-xl bg-[#e3ecff] px-3 py-2.5 text-[13px] font-bold text-royal">{info}</p> : null}
+      <form onSubmit={submitOtp} method="post" className="grid gap-4">
+        <p className="text-sm text-slate-600">
+          Enter the code sent to the administrator inbox for <span className="font-semibold text-slate-900">{email}</span>.
+        </p>
+        {info && <p role="status" className={adminNoticeClass}>{info}</p>}
         <div className="grid gap-1.5">
-          <label htmlFor="admin-otp" className="text-xs font-black text-[#2b3b78]">Verification code *</label>
-          <input id="admin-otp" inputMode="numeric" autoComplete="one-time-code" value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
-            placeholder="6-digit code" className={inputClass} />
+          <label htmlFor="admin-register-otp" className={adminLabelClass}>Verification code</label>
+          <input
+            id="admin-register-otp"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 8))}
+            placeholder="6-digit code"
+            className={adminInputClass}
+          />
         </div>
-        {error ? <p role="alert" className="rounded-xl bg-[#ffe9e4] px-3 py-2.5 text-[13px] font-bold text-[#a3410a]">{error}</p> : null}
-        <button type="submit" disabled={busy}
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-orange px-5 py-[13px] text-center font-black text-white shadow-pop-orange disabled:opacity-60">
-          {busy ? "Verifying…" : "Verify & activate →"}
+        {error && <p role="alert" className={adminErrorClass}>{error}</p>}
+        <button type="submit" disabled={busy} className={adminPrimaryButtonClass}>
+          {busy ? "Verifying…" : "Verify and activate"}
         </button>
+        <div className="flex items-center justify-between gap-3">
+          <button type="button" onClick={resend} disabled={busy || resendIn > 0} className={adminSecondaryButtonClass}>
+            {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setError("");
+              setInfo("");
+              setStep("details");
+            }}
+            className={adminLinkClass}
+          >
+            ← Edit details
+          </button>
+        </div>
       </form>
     );
   }
+
   return (
-    // method="post" blocks native GET serialization of email/password into the URL.
-    <form onSubmit={submitDetails} method="post" action="/api/admin/auth/register" className="grid gap-3.5">
+    <form onSubmit={submitDetails} method="post" className="grid gap-4">
       <div className="grid gap-1.5">
-        <label htmlFor="reg-name" className="text-xs font-black text-[#2b3b78]">Full name *</label>
-        <input id="reg-name" type="text" required autoComplete="name" maxLength={80} value={name}
-          onChange={(e) => setName(e.target.value)} placeholder="Your full name" className={inputClass} />
+        <label htmlFor="admin-name" className={adminLabelClass}>Full name</label>
+        <input id="admin-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} className={adminInputClass} />
       </div>
       <div className="grid gap-1.5">
-        <label htmlFor="reg-email" className="text-xs font-black text-[#2b3b78]">Administrator email *</label>
-        <input id="reg-email" type="email" required autoComplete="username" value={email}
-          onChange={(e) => setEmail(e.target.value)} placeholder="admin@example.com" className={inputClass} />
+        <label htmlFor="admin-register-email" className={adminLabelClass}>Email</label>
+        <input
+          id="admin-register-email"
+          type="email"
+          autoComplete="username"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="admin@example.com"
+          className={adminInputClass}
+        />
       </div>
       <div className="grid gap-1.5">
-        <label htmlFor="reg-password" className="text-xs font-black text-[#2b3b78]">Password * (min 8 characters)</label>
-        <input id="reg-password" type="password" required autoComplete="new-password" value={password}
-          onChange={(e) => setPassword(e.target.value)} placeholder="Choose a strong password" className={inputClass} />
+        <label htmlFor="admin-register-password" className={adminLabelClass}>Password (min 8 characters)</label>
+        <input
+          id="admin-register-password"
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className={adminInputClass}
+        />
       </div>
       <div className="grid gap-1.5">
-        <label htmlFor="reg-confirm" className="text-xs font-black text-[#2b3b78]">Confirm password *</label>
-        <input id="reg-confirm" type="password" required autoComplete="new-password" value={confirm}
-          onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat the password" className={inputClass} />
+        <label htmlFor="admin-register-confirm" className={adminLabelClass}>Confirm password</label>
+        <input
+          id="admin-register-confirm"
+          type="password"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          className={adminInputClass}
+        />
       </div>
-      {error ? <p role="alert" className="rounded-xl bg-[#ffe9e4] px-3 py-2.5 text-[13px] font-bold text-[#a3410a]">{error}</p> : null}
-      <button type="submit" disabled={busy}
-        className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-orange px-5 py-[13px] text-center font-black text-white shadow-pop-orange disabled:opacity-60">
-        {busy ? "Sending code…" : "Send verification code →"}
+      {error && <p role="alert" className={adminErrorClass}>{error}</p>}
+      <button type="submit" disabled={busy || open === null} className={adminPrimaryButtonClass}>
+        {busy ? "Sending code…" : "Send verification code"}
       </button>
+      <p className="text-center text-sm">
+        Already have an account?{" "}
+        <Link href="/admin/login" className={adminLinkClass}>Sign in</Link>
+      </p>
     </form>
   );
 }
-

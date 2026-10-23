@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { Lato, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import "remixicon/fonts/remixicon.css";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { siteConfig } from "@/lib/site";
 
 // Body font — Plus Jakarta Sans (self-hosted, no layout shift).
@@ -32,9 +30,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`scroll-smooth motion-reduce:scroll-auto ${jakarta.variable} ${lato.variable}`} data-scroll-behavior="smooth">
       <body className="bg-mist font-sans text-ink antialiased">
-        <Header />
+       
         <main>{children}</main>
-        <Footer />
+      
       </body>
     </html>
   );

@@ -1,119 +1,101 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
-import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getCsrfToken, authFetch } from "@/lib/admin-client/auth-fetch";
+import { useState, type FormEvent } from "react";
+import { adminRequest, errorMessage } from "@/lib/admin-client/admin-api";
+import { workshopSchema } from "@/lib/workshops/validation";
+import {
+  adminErrorClass,
+  adminInputClass,
+  adminLabelClass,
+  adminNoticeClass,
+  adminPrimaryButtonClass,
+} from "./admin-ui";
 
-const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // 3 MB source file ≈ 4 MB base64.
+const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 
-const field =
-  "w-full rounded-xl border border-line bg-white px-4 py-2.5 text-[14px] text-navy outline-none transition-colors placeholder:text-muted/60 focus:border-navy/40";
-const label = "mb-1 block text-[12px] font-medium text-muted";
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
-/**
- * Plain (non-SurveyJS) create-workshop form: image, title, description,
- * date, location. Submits JSON with the image as a data URL to the
- * admin-protected /api/workshops route, then refreshes the server-rendered list.
- */
+/** Publish a workshop. The image is sent as a data URL, matching the server schema. */
 export function WorkshopForm() {
   const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
 
-  function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) {
-      setPreview(null);
-      return;
-    }
-    if (file.size > MAX_IMAGE_BYTES) {
-      setPreview(null);
-      setMessage({ kind: "error", text: "Image is too large — please choose one under 3 MB." });
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => setPreview(typeof reader.result === "string" ? reader.result : null);
-    reader.readAsDataURL(file);
-  }
-
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (busy) return;
     const form = e.currentTarget;
     const data = new FormData(form);
-    const image = data.get("image");
-    if (!(image instanceof File) || image.size === 0) {
-      setMessage({ kind: "error", text: "Please choose an image for the workshop." });
-      return;
-    }
+    const file = data.get("image");
+    const when = new Date(String(data.get("date") ?? ""));
     setBusy(true);
-    setMessage(null);
+    setError("");
+    setInfo("");
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("read_failed"));
-        reader.readAsDataURL(image);
-      });
-      const payload = {
-        title: String(data.get("title") ?? "").trim(),
-        description: String(data.get("description") ?? "").trim(),
-        date: String(data.get("date") ?? "").trim(),
-        location: String(data.get("location") ?? "").trim(),
-        image: dataUrl,
-      };
-      const csrf = await getCsrfToken();
-      const res = await authFetch("/api/workshops", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
-        body: JSON.stringify(payload),
-      });
-      const json = (await res.json().catch(() => null)) as { success?: boolean; error?: { message?: string } } | null;
-      if (!res.ok || !json?.success) {
-        throw new Error(json?.error?.message ?? "Could not create the workshop. Try again.");
+      if (!(file instanceof File) || file.size === 0) {
+        setError("Upload an image file (PNG, JPG, WEBP or GIF).");
+        return;
       }
-      setMessage({ kind: "ok", text: "Workshop published — it now appears on the public Workshops page." });
+      if (file.size > MAX_IMAGE_BYTES) {
+        setError("Image too large — keep it under 3 MB.");
+        return;
+      }
+      const payload = {
+        title: String(data.get("title") ?? ""),
+        description: String(data.get("description") ?? ""),
+        date: Number.isNaN(when.getTime()) ? "" : when.toISOString(),
+        location: String(data.get("location") ?? ""),
+        image: await readAsDataUrl(file),
+      };
+      const parsed = workshopSchema.safeParse(payload);
+      if (!parsed.success) {
+        setError(parsed.error.issues[0]?.message ?? "Check the highlighted fields.");
+        return;
+      }
+      const res = await adminRequest<{ message?: string }>("/api/workshops", {
+        method: "POST",
+        body: parsed.data,
+        session: true,
+      });
+      if (!res.ok) {
+        setError(errorMessage(res.error));
+        return;
+      }
       form.reset();
-      setPreview(null);
-      if (fileRef.current) fileRef.current.value = "";
+      setInfo(res.data.message ?? "Workshop published.");
       router.refresh();
-    } catch (err) {
-      setMessage({ kind: "error", text: err instanceof Error ? err.message : "Something went wrong. Try again." });
+    } catch {
+      setError("Could not read the selected image. Try a different file.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-4" noValidate>
-      <div className="grid gap-1">
-        <label className={label} htmlFor="workshop-image">
-          Workshop image
-        </label>
-        <input
-          ref={fileRef}
-          id="workshop-image"
-          name="image"
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
-          onChange={onPickImage}
-          className="w-full cursor-pointer rounded-xl border border-line bg-white px-4 py-2.5 text-[13px] text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-line file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:text-navy"
-        />
-        {preview && <img src={preview} alt="Workshop image preview" className="mt-2 h-40 w-full rounded-xl border border-line object-cover" />}
+    <form onSubmit={submit} className="grid gap-4">
+      <div className="grid gap-1.5">
+        <label htmlFor="workshop-title" className={adminLabelClass}>Title</label>
+        <input id="workshop-title" name="title" required minLength={3} maxLength={140} className={adminInputClass} />
       </div>
-      <div className="grid gap-1">
-        <label className={label} htmlFor="workshop-title">
-          Title
-        </label>
-        <input id="workshop-title" name="title" type="text" required maxLength={140} placeholder="e.g. Animation & Storytelling Bootcamp" className={field} />
+      <div className="grid gap-1.5">
+        <label htmlFor="workshop-date" className={adminLabelClass}>Date and time</label>
+        <input id="workshop-date" name="date" type="datetime-local" required className={adminInputClass} />
       </div>
-      <div className="grid gap-1">
-        <label className={label} htmlFor="workshop-description">
-          Description
-        </label>
+      <div className="grid gap-1.5">
+        <label htmlFor="workshop-location" className={adminLabelClass}>Location</label>
+        <input id="workshop-location" name="location" required minLength={2} maxLength={200} className={adminInputClass} />
+      </div>
+      <div className="grid gap-1.5">
+        <label htmlFor="workshop-description" className={adminLabelClass}>Description</label>
         <textarea
           id="workshop-description"
           name="description"
@@ -121,37 +103,23 @@ export function WorkshopForm() {
           minLength={10}
           maxLength={3000}
           rows={4}
-          placeholder="What is this workshop about?"
-          className={`${field} resize-y`}
+          className={adminInputClass}
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1">
-          <label className={label} htmlFor="workshop-date">
-            Date
-          </label>
-          <input id="workshop-date" name="date" type="date" required className={field} />
-        </div>
-        <div className="grid gap-1">
-          <label className={label} htmlFor="workshop-location">
-            Location
-          </label>
-          <input id="workshop-location" name="location" type="text" required maxLength={200} placeholder="e.g. RTIH, Mangalagiri" className={field} />
-        </div>
+      <div className="grid gap-1.5">
+        <label htmlFor="workshop-image" className={adminLabelClass}>Image (PNG, JPG, WEBP or GIF, max 3 MB)</label>
+        <input
+          id="workshop-image"
+          name="image"
+          type="file"
+          required
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          className="text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-semibold file:text-blue-700"
+        />
       </div>
-      {message && (
-        <p
-          role="status"
-          className="text-[13px] text-muted"
-        >
-          {message.text}
-        </p>
-      )}
-      <button
-        type="submit"
-        disabled={busy}
-        className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-navy bg-navy px-5 py-2.5 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      {error && <p role="alert" className={adminErrorClass}>{error}</p>}
+      {info && <p role="status" className={adminNoticeClass}>{info}</p>}
+      <button type="submit" disabled={busy} className={adminPrimaryButtonClass}>
         {busy ? "Publishing…" : "Publish workshop"}
       </button>
     </form>

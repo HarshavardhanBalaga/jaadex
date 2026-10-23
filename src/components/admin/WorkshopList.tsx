@@ -1,80 +1,37 @@
-"use client";
+import { formatDateTime } from "@/lib/format";
+import { WorkshopDeleteButton } from "./WorkshopDeleteButton";
 
-/* eslint-disable @next/next/no-img-element */
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { getCsrfToken, authFetch } from "@/lib/admin-client/auth-fetch";
-
-export type WorkshopListItem = {
+export interface WorkshopListItem {
   id: string;
   title: string;
   description: string;
-  date: string; // ISO
+  date: string;
   location: string;
-  image: string; // data URL
-};
-
-function fmtDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
-  } catch {
-    return "—";
-  }
+  image: string;
 }
 
-/** Dashboard list of published workshops with delete. Server data, client actions. */
+/** Published workshops with delete. Rendered on the server so dates are formatted once. */
 export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
-  const router = useRouter();
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function onDelete(id: string) {
-    if (!window.confirm("Remove this workshop from the calendar?")) return;
-    setBusyId(id);
-    setError(null);
-    try {
-      const csrf = await getCsrfToken();
-      const res = await authFetch(`/api/workshops/${id}`, {
-        method: "DELETE",
-        headers: { "x-csrf-token": csrf },
-      });
-      if (!res.ok) throw new Error("Could not remove the workshop. Try again.");
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   if (workshops.length === 0) {
-    return <p className="px-5 py-6 text-[13px] text-muted">No workshops published yet. Open “Publish workshop” under Actions to add one.</p>;
+    return <p className="px-5 py-6 text-sm text-slate-500">No workshops published yet.</p>;
   }
-
   return (
-    <div className="divide-y divide-line">
-      {error && <p className="px-5 py-3 text-[13px] text-muted">{error}</p>}
+    <ul className="divide-y divide-slate-200">
       {workshops.map((w) => (
-        <div key={w.id} className="flex items-center gap-4 px-5 py-4">
-          {/* Data-URL image: plain img (next/image does not accept data: URLs). */}
-          <img src={w.image} alt={w.title} className="h-14 w-20 shrink-0 rounded-lg border border-line object-cover" />
+        <li key={w.id} className="flex flex-wrap items-start gap-4 px-5 py-4">
+          {/* Data URLs cannot go through next/image. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={w.image} alt="" className="h-16 w-24 shrink-0 rounded-lg object-cover" />
           <div className="min-w-0 flex-1">
-            <h4 className="truncate text-[14px] font-semibold text-navy">{w.title}</h4>
-            <p className="mt-0.5 text-[12px] text-muted">
-              {fmtDate(w.date)} · {w.location}
+            <p className="font-semibold break-words text-slate-900">{w.title}</p>
+            <p className="text-xs text-slate-500">
+              {formatDateTime(w.date)} · {w.location}
             </p>
+            <p className="mt-1 line-clamp-2 text-sm text-slate-600">{w.description}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => void onDelete(w.id)}
-            disabled={busyId === w.id}
-            className="shrink-0 cursor-pointer rounded-lg border border-line px-3.5 py-1.5 text-[12px] text-muted transition-colors hover:border-navy/30 hover:text-navy disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busyId === w.id ? "Removing…" : "Remove"}
-          </button>
-        </div>
+          <WorkshopDeleteButton id={w.id} title={w.title} />
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
