@@ -26,8 +26,8 @@ export function AdminLogoutButton() {
   }
   return (
     <button type="button" onClick={logout} disabled={busy}
-      className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-midnight px-5 py-2.5 text-[13px] font-black text-white disabled:opacity-60">
-      {busy ? "Logging out…" : "Log out →"}
+      className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-line px-4 py-2 text-[13px] text-navy transition-colors hover:border-navy/30 disabled:opacity-60">
+      {busy ? "Logging out…" : "Log out"}
     </button>
   );
 }
