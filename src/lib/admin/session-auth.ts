@@ -4,9 +4,10 @@
  * true reuse revokes the family.
  */
 import { randomUUID } from "node:crypto";
+import type { Types } from "mongoose";
 import { connectToDatabase as connectDb2 } from "@/lib/mongodb";
 import { AdminModel as AdminModel2 } from "@/models/Admin";
-import { AdminSessionModel as AdminSessionModel2 } from "@/models/AdminSession";
+import { AdminSessionModel as AdminSessionModel2, type AdminAuthMethod } from "@/models/AdminSession";
 import { getAdminAuthConfig as getAuthConfig2 } from "./auth-config";
 import { hashToken as hashToken2 } from "./otp";
 import { verifyPassword as verifyPassword2 } from "./password";
@@ -29,6 +30,19 @@ export async function loginAdmin(
   if (!admin) return { outcome: "invalid" };
   const pwOk = await verifyPassword2(password, admin.passwordHash);
   if (!pwOk || admin.status !== "active" || !admin.emailVerifiedAt) return { outcome: "invalid" };
+  return issueAdminSession({ _id: admin._id, role: admin.role }, meta, "password");
+}
+
+/**
+ * Creates a new refresh family + token pair for an already-authenticated
+ * admin. Shared by every sign-in method (password, Google) so sessions are
+ * identical regardless of how the admin proved who they are.
+ */
+export async function issueAdminSession(
+  admin: { _id: Types.ObjectId; role: string },
+  meta: { ipHash: string | null; uaHash: string | null },
+  authMethod: AdminAuthMethod,
+): Promise<LoginOutcome> {
   const c = getAuthConfig2();
   const familyId = randomUUID();
   const accessToken = signAccess2(String(admin._id), admin.role, familyId);
@@ -42,6 +56,7 @@ export async function loginAdmin(
       expiresAt: new Date(Date.now() + c.refreshExpiresSeconds * 1000),
       ipHash: meta.ipHash,
       uaHash: meta.uaHash,
+      authMethod,
     });
   } catch {
     return { outcome: "unavailable" };

@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { Icon } from "@/components/Icon";
 import { ContactPageClient } from "@/components/ContactPageClient";
 import { Container } from "@/components/Container";
-import { PageHero } from "@/components/PageHero";
 import { Section } from "@/components/Section";
 
 export const metadata: Metadata = { title: "Contact", description: "Contact JaaDeX about school packages, animation learning, AI filmmaking and partnerships." };
@@ -23,7 +22,6 @@ function InfoCard({ icon, title, children }: { icon: ReactNode; title: string; c
 export default function ContactPage() {
   return (
     <>
-      <PageHero eyebrow="Start a conversation" title={<>Let&apos;s make room for <span>your ideas.</span></>} description="Interested in JaaDeX Animate, school packages, AI filmmaking learning or collaboration? Share a few details and tell us what you want to explore." art="💌" />
       <Section>
         <Container className="grid items-start gap-[25px] md:grid-cols-[.85fr_1.15fr] md:gap-12">
           <div>
@@ -32,7 +30,12 @@ export default function ContactPage() {
             <p className="mb-[22px] text-[15px] leading-[1.75] text-muted">Use the form to describe your enquiry. Your details go straight to the JaaDeX team.</p>
             <InfoCard icon={<Icon name="school" size={25} />} title="Schools & institutions">Ask about animation learning, school implementation and teacher support.</InfoCard>
             <InfoCard icon={<Icon name="clapperboard" size={25} />} title="Creative courses">Ask about AI filmmaking, storytelling and animation learning opportunities.</InfoCard>
-            <InfoCard icon={<Icon name="mail" size={25} />} title="Email contact">Current placeholder: hello@jaadex.com. Confirm the official address before publishing.</InfoCard>
+            <InfoCard icon={<Icon name="mail" size={25} />} title="Email contact">
+              contact at:{" "}
+              <a href="mailto:info@jaadex.com" className="font-bold text-royal underline-offset-4 hover:underline">
+                info@jaadex.com
+              </a>
+            </InfoCard>
           </div>
           <div className="rounded-[25px] border border-line bg-white p-[21px] shadow-[0_12px_30px_rgb(20_60_160/0.03)] md:p-[27px]">
             <h3 className="mb-[7px] font-display text-[22px] font-bold text-navy">Enquiry form</h3>

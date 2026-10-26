@@ -1,7 +1,12 @@
-/** SMTP mailer (SERVER-ONLY). Registration codes go to the shared inbox; password-reset codes go to the account email. */
+/**
+ * SMTP mailer (SERVER-ONLY). Registration codes go to the shared inbox;
+ * password-reset codes go to the account email; new-enquiry alerts go to
+ * ENQUIRY_NOTIFY_EMAIL (fallback ADMIN_OTP_EMAIL).
+ */
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import { getAdminAuthConfig } from "./auth-config";
+import { buildEnquiryEmail, type EnquiryForEmail } from "@/lib/contact/notify";
 
 let cachedTransport: Transporter | null = null;
 
@@ -48,4 +53,16 @@ export async function sendPasswordResetOtp(to: string, otp: string, expiresMinut
     return;
   }
   await transport.sendMail({ from: c.mailFrom, to, subject, text });
+}
+
+/** New-enquiry alert to the team. Reply-To is the submitter so staff can answer directly. */
+export async function sendEnquiryNotification(enquiry: EnquiryForEmail): Promise<void> {
+  const c = getAdminAuthConfig();
+  const transport = getTransport();
+  if (!transport) {
+    console.info("[contact] SMTP not configured; enquiry email skipped (dev only).");
+    return;
+  }
+  const { subject, text } = buildEnquiryEmail(enquiry, `${c.appUrl}/admin/dashboard`);
+  await transport.sendMail({ from: c.mailFrom, to: c.enquiryNotifyEmails, replyTo: enquiry.email, subject, text });
 }

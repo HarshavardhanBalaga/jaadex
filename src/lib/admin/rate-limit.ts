@@ -41,7 +41,12 @@ export async function checkRateLimit(
   };
 }
 
+/**
+ * Forwarded headers are client-controlled unless a trusted proxy overwrites
+ * them, so only honour them when TRUST_PROXY=true (e.g. on Vercel/nginx).
+ */
 export function clientIp(request: Request): string {
+  if (process.env.TRUST_PROXY?.trim().toLowerCase() !== "true") return "unknown";
   const fwd = request.headers.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0]?.trim() || "unknown";
   return request.headers.get("x-real-ip")?.trim() || "unknown";
