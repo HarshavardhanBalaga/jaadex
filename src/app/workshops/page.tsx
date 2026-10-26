@@ -37,6 +37,15 @@ function PhotoCard({ src, alt, title, description }: PhotoCardProps) {
 }
 import { Section } from "@/components/Section";
 import { SectionHeading } from "@/components/SectionHeading";
+import { ImageCarousel } from "@/components/ImageCarousel";
+
+const amaravatiGlimpses = [
+  { src: "/assets/carousels.JPG", alt: "Participants at the Amaravati creative economy workshop, glimpse 1" },
+  ...[2, 3, 4, 5, 6].map((n) => ({
+    src: `/assets/carousel-${n}.JPG`,
+    alt: `Participants at the Amaravati creative economy workshop, glimpse ${n}`,
+  })),
+];
 
 export const metadata: Metadata = { title: "Workshops", description: "JaaDeX workshops — animation, storytelling, AI filmmaking, creative technology, and industry programs for students, teachers, and creators." };
 
@@ -202,6 +211,17 @@ export default async function WorkshopsPage() {
               </article>
             )}
           </div>
+        </Container>
+      </Section>
+
+      {/* Amaravati Creative Economy Workshop glimpses */}
+      <Section>
+        <Container>
+          <div className="mx-auto mb-7 max-w-[640px] text-center md:mb-9">
+            <div className="text-xs font-black tracking-[1.4px] text-orange uppercase">Amaravati Creative Economy Workshop</div>
+            <h2 className="mt-2 font-display text-2xl leading-[1.2] font-black tracking-[-0.5px] text-navy md:text-[28px]">Glimpses of the workshop</h2>
+          </div>
+          <ImageCarousel images={amaravatiGlimpses} />
         </Container>
       </Section>
 

@@ -71,6 +71,10 @@ export function Footer() {
         <div className="flex flex-wrap justify-between gap-[15px] border-t border-white/10 pt-[18px] text-[11px] text-[#8d9cc9] max-md:flex-col max-md:gap-0 max-md:leading-8">
           <span>© {new Date().getFullYear()} JaaDeX Innovision Pvt Ltd. All rights reserved.</span>
           <span>Imagine. Create. Animate. 🌱</span>
+          <span className="flex gap-4">
+            <Link className="hover:text-gold" href="/privacy-policy">Privacy Policy</Link>
+            <Link className="hover:text-gold" href="/terms">Terms and Conditions</Link>
+          </span>
         </div>
       </Container>
     </footer>
