@@ -50,20 +50,6 @@ function required(name: string, hint?: string): string {
   return v;
 }
 
-/**
- * Backward compatibility with the pre-existing local .env, which used older
- * names (ADMIN_API_BASE_PATH, ADMIN_PORTAL_PATH, ADMIN_SETUP_KEY, etc.).
- * New canonical names win; legacy names are accepted as fallback so dev
- * keeps working while you migrate to .env.example.
- */
-function legacy(...names: string[]): string {
-  for (const n of names) {
-    const v = process.env[n]?.trim();
-    if (v) return v;
-  }
-  return "";
-}
-
 function optional(name: string, fallback: string): string {
   return process.env[name]?.trim() || fallback;
 }
@@ -98,10 +84,7 @@ export function getAdminAuthConfig(options: { bypassCache?: boolean } = {}): Adm
   if (cached && !options.bypassCache) return cached;
   const accessSecret = required("JWT_ACCESS_SECRET");
   const refreshSecret = required("JWT_REFRESH_SECRET");
-  // New canonical OTP_PEPPER; fall back to legacy ADMIN_SETUP_KEY so existing
-  // local .env files keep working. Both are server-only secrets.
-  const otpPepper = process.env.OTP_PEPPER?.trim() || legacy("ADMIN_SETUP_KEY") || required("OTP_PEPPER",
-    "Set OTP_PEPPER (or legacy ADMIN_SETUP_KEY) to a random >= 32-char secret.");
+  const otpPepper = required("OTP_PEPPER", "Set it to a random >= 32-char secret.");
   if (accessSecret.length < 32 || refreshSecret.length < 32 || otpPepper.length < 32) {
     throw new Error("[admin-auth] JWT_ACCESS_SECRET, JWT_REFRESH_SECRET and OTP_PEPPER must each be >= 32 chars.");
   }
@@ -122,8 +105,7 @@ export function getAdminAuthConfig(options: { bypassCache?: boolean } = {}): Adm
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminOtpEmail)) {
     throw new Error("[admin-auth] ADMIN_OTP_EMAIL is not a valid email.");
   }
-  const appUrl =
-    optional("APP_URL", legacy("ADMIN_PORTAL_PATH") || optional("CLIENT_URL", "http://localhost:3000")).replace(/\/+$/, "");
+  const appUrl = optional("APP_URL", optional("CLIENT_URL", "http://localhost:3000")).replace(/\/+$/, "");
   const clientUrl = optional("CLIENT_URL", appUrl).replace(/\/+$/, "");
   const nodeEnv = (process.env.NODE_ENV ?? "development").toLowerCase();
   const isProduction = nodeEnv === "production";
