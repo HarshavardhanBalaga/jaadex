@@ -9,6 +9,8 @@ export interface AdminDoc extends Document {
   name: string;
   email: string;
   passwordHash: string;
+  /** Google account id (OIDC `sub`), linked on first Google sign-in. */
+  googleSub: string | null;
   role: AdminRole;
   status: AdminStatus;
   emailVerifiedAt: Date | null;
@@ -36,6 +38,7 @@ const AdminSchema = new Schema<AdminDoc>(
       match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email"],
     },
     passwordHash: { type: String, required: true, select: false },
+    googleSub: { type: String, default: null },
     role: { type: String, enum: ["superadmin", "admin"], required: true },
     status: { type: String, enum: ["pending", "active", "disabled"], required: true, default: "pending" },
     emailVerifiedAt: { type: Date, default: null },
@@ -48,6 +51,11 @@ const AdminSchema = new Schema<AdminDoc>(
 
 AdminSchema.index({ email: 1 }, { unique: true });
 AdminSchema.index({ status: 1 });
+// One admin per Google account; null (not linked) is excluded from uniqueness.
+AdminSchema.index(
+  { googleSub: 1 },
+  { unique: true, partialFilterExpression: { googleSub: { $type: "string" } }, name: "uniq_google_sub" },
+);
 // First admin is superadmin; later admins are plain admin: only one pending/active superadmin can ever exist.
 AdminSchema.index(
   { role: 1 },

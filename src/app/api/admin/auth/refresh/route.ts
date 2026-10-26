@@ -1,16 +1,11 @@
-import { createHash } from "node:crypto";
 import { rotateRefresh } from "@/lib/admin/session-auth";
 import { validateCsrf } from "@/lib/admin/csrf";
 import { checkRateLimit, clientIp } from "@/lib/admin/rate-limit";
 import { accessCookieSpec, refreshCookieSpec, setAuthCookies, readAuthCookies } from "@/lib/admin/cookies";
+import { hashMeta } from "@/lib/admin/request-meta";
 import { ok, fail } from "@/lib/admin/respond";
 
 export const dynamic = "force-dynamic";
-
-function hashMeta(v: string): string | null {
-  if (!v) return null;
-  return createHash("sha256").update(v, "utf8").digest("hex").slice(0, 32);
-}
 
 /** Refresh with atomic rotation + 30s benign-retry grace. */
 export async function POST(request: Request) {

@@ -8,12 +8,13 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/__tests__/mongodb-config.test.ts src/lib/admin/__tests__/admin-auth.test.ts src/lib/admin/__tests__/auth-url-leakage.test.ts src/lib/contact/__tests__/contact.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/__tests__/mongodb-config.test.ts src/lib/admin/__tests__/admin-auth.test.ts src/lib/admin/__tests__/auth-url-leakage.test.ts src/lib/contact/__tests__/contact.test.ts src/lib/oauth/__tests__/google.test.ts",
     "verify:mongo": "node --experimental-strip-types scripts/verify-mongo.mts"
   },
   "dependencies": {
     "@prisma/client": "^7.10.0",
     "bcryptjs": "^3.0.3",
+    "jose": "^6.2.13",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.11.1",
     "next": "^16.4.2",
