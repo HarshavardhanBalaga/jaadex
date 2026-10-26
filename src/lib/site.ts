@@ -9,6 +9,7 @@ export const siteConfig = {
 export const navigation = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
+  { label: "Try Demo", href: "/demo" },
   { label: "Schools", href: "/schools" },
   { label: "Projects", href: "/projects" },
   { label: "Workshops", href: "/workshops" },

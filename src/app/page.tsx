@@ -11,6 +11,14 @@ import { FeatureGrid } from "@/components/FeatureGrid";
 import { Section } from "@/components/Section";
 import { SectionHeading } from "@/components/SectionHeading";
 import { SplitFeature } from "@/components/SplitFeature";
+import { NumberedList } from "@/components/NumberedList";
+
+const teacherSteps = [
+  { title: "Ready-to-run lessons", description: "Animation and storytelling activities you can drop into existing lesson plans." },
+  { title: "Quick teacher training", description: "Hands-on sessions so teachers can run creative activities with confidence." },
+  { title: "Guided student projects", description: "Clear project steps take learners from first idea to finished animation." },
+  { title: "Implementation support", description: "Curriculum alignment and planning help your school roll JaaDeX out smoothly." },
+];
 
 const faqs = [
   { question: "What is JaaDeX?", answer: "JaaDeX Innovision is building a creative learning platform that brings together animation, storytelling, school education and emerging creative technologies." },
@@ -29,7 +37,7 @@ export default function HomePage() {
           </>
         }
         description="Animation, storytelling and creative tech that help young learners imagine more and make more."
-        cta={{ label: "Book a Demo ↗", href: "/contact?interest=Product%20Demonstration" }}
+        cta={{ label: "Book a Demo ↗", href: "/demo" }}
       />
 
       <Section>
@@ -131,6 +139,17 @@ export default function HomePage() {
         </Container>
       </Section>
 
+
+      <Section>
+        <Container>
+          <SectionHeading
+            eyebrow="For educators"
+            title="Maximizing teacher efficiency"
+            description="Less time planning, more time teaching. JaaDeX gives teachers ready-made creative activities, training and support, so class time goes to learning."
+          />
+          <NumberedList items={teacherSteps} />
+        </Container>
+      </Section>
 
       <Section id="faq">
         <Container className="max-w-[900px]">
