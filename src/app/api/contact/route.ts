@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { DemoRequestModel } from "@/models/DemoRequest";
 import { contactSchema } from "@/lib/contact/validation";
 import { checkRateLimit, clientIp } from "@/lib/admin/rate-limit";
+import { sendEnquiryNotification } from "@/lib/admin/mailer";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
   }
   try {
     await connectToDatabase();
-    await DemoRequestModel.create({
+    const doc = await DemoRequestModel.create({
       name: parsed.data.name,
       email: parsed.data.email,
       organization: parsed.data.organization || "",
@@ -54,6 +55,18 @@ export async function POST(request: Request) {
       message: parsed.data.message,
       status: "new",
     });
+    // Notify the team after the response is sent: SMTP latency never slows the
+    // submitter, and a mail failure never fails an enquiry that is already saved.
+    after(() =>
+      sendEnquiryNotification({
+        name: doc.name,
+        email: doc.email,
+        organization: doc.organization,
+        interest: doc.interest,
+        message: doc.message,
+        createdAt: doc.createdAt,
+      }).catch(() => console.error("[contact] notify email failed")),
+    );
     return ok({ message: "Thanks — we'll be in touch shortly." }, 201);
   } catch (err) {
     console.error("[contact] unavailable:", err instanceof Error ? err.message : err);
