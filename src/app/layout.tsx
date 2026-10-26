@@ -26,6 +26,7 @@ const lato = Lato({
 export const metadata: Metadata = {
   title: { default: "JaaDeX — Imagine. Create. Animate.", template: "%s | JaaDeX" },
   description: siteConfig.description,
+  icons: { icon: "/logo/fv-jaadex.png", apple: "/logo/fv-jaadex.png" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
