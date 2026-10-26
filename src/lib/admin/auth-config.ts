@@ -5,6 +5,7 @@
  * without auth secrets configured.
  */
 import "server-only";
+import { parseNotifyEmails } from "@/lib/contact/notify";
 
 export interface AdminAuthConfig {
   accessSecret: string;
@@ -20,6 +21,8 @@ export interface AdminAuthConfig {
   otpResendCooldownSeconds: number;
   otpMaxResends: number;
   adminOtpEmail: string;
+  /** Recipients of new-enquiry emails (ENQUIRY_NOTIFY_EMAIL, falls back to ADMIN_OTP_EMAIL). */
+  enquiryNotifyEmails: string[];
   smtpHost: string;
   smtpPort: number;
   smtpSecure: boolean;
@@ -126,6 +129,7 @@ export function getAdminAuthConfig(options: { bypassCache?: boolean } = {}): Adm
     otpResendCooldownSeconds: requiredInt("OTP_RESEND_COOLDOWN_SECONDS", 30, 600),
     otpMaxResends: 5,
     adminOtpEmail,
+    enquiryNotifyEmails: parseNotifyEmails(process.env.ENQUIRY_NOTIFY_EMAIL, adminOtpEmail),
     smtpHost: required("SMTP_HOST"),
     smtpPort: requiredInt("SMTP_PORT", 1, 65535),
     smtpSecure: optional("SMTP_SECURE", "false").toLowerCase() === "true",
