@@ -36,7 +36,10 @@ async function postJson(url: string, body: unknown, retried = false): Promise<{ 
 const inputClass =
   "w-full rounded-xl border border-[#cfd9f0] bg-white px-[13px] py-3 text-ink outline-none focus:border-royal focus:ring-[3px] focus:ring-royal/10";
 
-export function AdminLoginForm() {
+export function AdminLoginForm({ googleEnabled = false, googleError = false }: {
+  googleEnabled?: boolean;
+  googleError?: boolean;
+}) {
   const router = useRouter();
   const [step, setStep] = useState<"login" | "forgot" | "reset" | "done">("login");
   const [email, setEmail] = useState("");
@@ -45,7 +48,9 @@ export function AdminLoginForm() {
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    googleError ? "Google sign-in failed, or this Google account isn't an admin." : "",
+  );
   const [info, setInfo] = useState("");
   // First-run setup hint: true when no active admin exists yet. Driven only
   // by the already-public register/status flag — reveals nothing per-email.
@@ -221,6 +226,19 @@ export function AdminLoginForm() {
           No administrator account exists yet —{" "}
           <Link href="/admin/register" className="underline">complete the initial setup first →</Link>
         </div>
+      ) : null}
+      {googleEnabled ? (
+        <>
+          {/* Plain navigation: the server route handles state/PKCE and the redirect to Google. */}
+          <a href="/api/admin/auth/google/start"
+            className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-[#cfd9f0] bg-white px-5 py-3 text-center font-black text-navy transition-colors duration-200 hover:bg-[#f3f6fd]">
+            <i className="ri-google-fill text-[18px] text-royal" aria-hidden="true" />
+            Continue with Google
+          </a>
+          <div className="flex items-center gap-3 text-xs font-bold text-muted" aria-hidden="true">
+            <span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" />
+          </div>
+        </>
       ) : null}
       <div className="grid gap-1.5">
         <label htmlFor="admin-email" className="text-xs font-black text-[#2b3b78]">Email *</label>

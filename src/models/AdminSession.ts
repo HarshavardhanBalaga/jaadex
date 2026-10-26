@@ -5,6 +5,8 @@
  */
 import mongoose, { Document, Model, Schema, Types } from "mongoose";
 
+export type AdminAuthMethod = "password" | "google";
+
 export interface AdminSessionDoc extends Document {
   _id: Types.ObjectId;
   familyId: string;
@@ -18,6 +20,7 @@ export interface AdminSessionDoc extends Document {
   revokeReason: string | null;
   ipHash: string | null;
   uaHash: string | null;
+  authMethod: AdminAuthMethod;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +38,7 @@ const AdminSessionSchema = new Schema<AdminSessionDoc>(
     revokeReason: { type: String, default: null, maxlength: 200 },
     ipHash: { type: String, default: null },
     uaHash: { type: String, default: null },
+    authMethod: { type: String, enum: ["password", "google"], default: "password" },
   },
   { timestamps: true, collection: "admin_sessions" },
 );
