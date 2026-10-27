@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { interests } from "@/lib/contact/validation";
 
 export function ContactForm({ initialInterest = "" }: { initialInterest?: string }) {
+  const router = useRouter();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -37,6 +39,11 @@ export function ContactForm({ initialInterest = "" }: { initialInterest?: string
         success?: boolean;
         error?: { message?: string; fields?: Record<string, string[]> };
       };
+      if (res.status === 401) {
+        // Session expired since the page loaded: log in again, then come back here.
+        router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+        return;
+      }
       if (!res.ok || data.success !== true) {
         setError(data?.error?.message ?? "Something went wrong. Try again later.");
         if (data?.error?.fields) setFieldErrors(data.error.fields);
