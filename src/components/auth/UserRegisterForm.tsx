@@ -28,19 +28,27 @@ export function UserRegisterForm({ next }: { next: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  // Seconds until "Resend code" is allowed (from the server's resend cooldown).
+  const [resendIn, setResendIn] = useState(0);
 
   useEffect(() => {
     getCsrfToken().catch(() => undefined);
   }, []);
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
 
-  async function submitDetails(e: React.FormEvent) {
-    e.preventDefault();
-    if (busy) return;
+  /** Sends (or re-sends) the verification code; used by the details step and "Resend code". */
+  async function sendCode(resend: boolean) {
+    if (busy || (resend && resendIn > 0)) return;
     setError("");
     setInfo("");
     const parsed = registerSchema.safeParse({ name, email, password, confirmPassword: confirm });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Check the fields.");
+      if (resend) setStep("details");
       return;
     }
     setBusy(true);
@@ -50,11 +58,19 @@ export function UserRegisterForm({ next }: { next: string }) {
         setError(errMsg(data, "Registration is unavailable."));
         return;
       }
-      setInfo(`We sent a verification code to ${parsed.data.email}. Enter it below.`);
+      setResendIn(typeof data.resendAvailableInSeconds === "number" ? data.resendAvailableInSeconds : 60);
+      setInfo(resend
+        ? `A new code is on its way to ${parsed.data.email}. Only the newest code works.`
+        : `We sent a verification code to ${parsed.data.email}. Enter it below.`);
       setStep("otp");
     } finally {
       setBusy(false);
     }
+  }
+
+  function submitDetails(e: React.FormEvent) {
+    e.preventDefault();
+    void sendCode(false);
   }
 
   async function submitOtp(e: React.FormEvent) {
@@ -63,8 +79,11 @@ export function UserRegisterForm({ next }: { next: string }) {
     setError("");
     setBusy(true);
     try {
+      // Details are sent again: the server sets the password only at verification.
       const { ok, data } = await postJson("/api/auth/register/verify-otp", {
+        name: name.trim(),
         email: email.trim().toLowerCase(),
+        password,
         otp: otp.trim(),
       });
       if (!ok) {
@@ -94,9 +113,13 @@ export function UserRegisterForm({ next }: { next: string }) {
           className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-orange px-5 py-[13px] text-center font-black text-white shadow-pop-orange disabled:opacity-60">
           {busy ? "Verifying…" : "Verify & continue →"}
         </button>
-        <button type="button" onClick={() => { setError(""); setStep("details"); }}
+        <button type="button" onClick={() => void sendCode(true)} disabled={busy || resendIn > 0}
+          className="text-center text-[13px] font-bold text-royal hover:underline disabled:cursor-not-allowed disabled:text-muted disabled:no-underline">
+          {resendIn > 0 ? `Didn't get a code? Resend in ${resendIn}s` : "Didn't get a code? Resend code"}
+        </button>
+        <button type="button" onClick={() => { setError(""); setInfo(""); setStep("details"); }}
           className="text-center text-[13px] font-bold text-royal hover:underline">
-          ← Change details or resend code
+          ← Change details
         </button>
       </form>
     );

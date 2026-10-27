@@ -1,4 +1,4 @@
-import { verifyOtpSchema } from "@/lib/admin/validation";
+import { userVerifySchema } from "@/lib/user/validation";
 import { verifyUserOtp } from "@/lib/user/auth-service";
 import { createUserSession } from "@/lib/user/session";
 import { validateCsrf } from "@/lib/admin/csrf";
@@ -20,10 +20,10 @@ export async function POST(request: Request) {
   if (limited && !limited.allowed) return fail("rate_limited", "Too many attempts. Try again later.", 429);
   const { data, error } = await readJson(request);
   if (error) return fail("invalid_request", "Invalid request body.", 400);
-  const parsed = verifyOtpSchema.safeParse(data);
+  const parsed = userVerifySchema.safeParse(data);
   if (!parsed.success) return fail("validation_error", "Enter the code sent to your email.", 400);
   try {
-    const r = await verifyUserOtp(parsed.data.email, parsed.data.otp);
+    const r = await verifyUserOtp(parsed.data.email, parsed.data.otp, parsed.data.name, parsed.data.password);
     if (r.outcome === "verified") {
       await createUserSession(r.userId, {
         ipHash: hashMeta(ip),

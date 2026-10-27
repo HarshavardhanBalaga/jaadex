@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/__tests__/mongodb-config.test.ts src/lib/admin/__tests__/admin-auth.test.ts src/lib/admin/__tests__/auth-url-leakage.test.ts src/lib/contact/__tests__/contact.test.ts src/lib/oauth/__tests__/google.test.ts src/lib/user/__tests__/safe-next.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/__tests__/mongodb-config.test.ts src/lib/admin/__tests__/admin-auth.test.ts src/lib/admin/__tests__/auth-url-leakage.test.ts src/lib/contact/__tests__/contact.test.ts src/lib/oauth/__tests__/google.test.ts src/lib/user/__tests__/safe-next.test.ts src/lib/user/__tests__/user-auth.test.ts",
     "verify:mongo": "node --experimental-strip-types scripts/verify-mongo.mts"
   },
   "dependencies": {

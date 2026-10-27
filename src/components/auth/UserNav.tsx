@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ButtonLink } from "@/components/ButtonLink";
-import { getCsrfToken, clearCsrfCache } from "@/lib/admin-client/auth-fetch";
+import { postJson } from "@/lib/admin-client/auth-fetch";
 
 /**
  * Header slot for website users: guests see "Login", signed-in users see
@@ -75,18 +75,18 @@ export function UserNav() {
     if (busy) return;
     setBusy(true);
     try {
-      const csrf = await getCsrfToken().catch(() => "");
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-        headers: { "x-csrf-token": csrf },
-      }).catch(() => undefined);
+      // postJson retries once with a fresh CSRF token (the cached one may have expired).
+      const { ok } = await postJson("/api/auth/logout", {}).catch(() => ({ ok: false }));
+      if (ok) {
+        writeHint(false);
+        setLoggedIn(false);
+        router.refresh();
+      } else {
+        // Not confirmed: re-check the real session state instead of guessing.
+        setRefresh((r) => r + 1);
+      }
     } finally {
-      clearCsrfCache();
-      writeHint(false);
-      setLoggedIn(false);
       setBusy(false);
-      router.refresh();
     }
   }
 

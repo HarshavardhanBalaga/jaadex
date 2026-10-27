@@ -109,13 +109,9 @@ export async function registerUser(name: string, email: string, password: string
 
   let userId: Types.ObjectId;
   if (existing) {
-    // Pending re-registration: the account is unverified, so the latest
-    // details win (the first attempt may have had a mistyped password).
+    // Pending re-registration: just re-issue the code. The stored password is
+    // never trusted — verifyUserOtp sets it from whoever holds the code.
     userId = existing._id;
-    await UserModel.updateOne(
-      { _id: userId, status: "pending" },
-      { $set: { name: trimmedName, passwordHash: await hashPassword(password) } },
-    );
   } else {
     try {
       const created = await UserModel.create({
@@ -143,16 +139,34 @@ export type UserVerifyOutcome =
   | { outcome: "verified"; userId: Types.ObjectId }
   | { outcome: "invalid" | "expired" | "locked" | "not_found"; attemptsLeft?: number };
 
-export async function verifyUserOtp(email: string, otp: string): Promise<UserVerifyOutcome> {
+/**
+ * Activates a pending account. Name and password are written here, not at
+ * registration: only the holder of the emailed code picks the final password,
+ * so a second registration of the same pending email can't take it over.
+ */
+export async function verifyUserOtp(
+  email: string,
+  otp: string,
+  name: string,
+  password: string,
+): Promise<UserVerifyOutcome> {
   await connectToDatabase();
   const user = await UserModel.findOne({ email: email.trim().toLowerCase() }).select({ _id: 1, status: 1 }).lean();
   if (!user || user.status !== "pending") return { outcome: "not_found" };
   const r = await consumeOtp(user._id, "register", otp);
   if (r.outcome !== "consumed") return r;
-  await UserModel.updateOne(
+  const activated = await UserModel.updateOne(
     { _id: user._id, status: "pending" },
-    { $set: { status: "active", emailVerifiedAt: new Date() } },
+    {
+      $set: {
+        name: name.trim().slice(0, 80),
+        passwordHash: await hashPassword(password),
+        status: "active",
+        emailVerifiedAt: new Date(),
+      },
+    },
   );
+  if (activated.modifiedCount !== 1) return { outcome: "invalid" };
   return { outcome: "verified", userId: user._id };
 }
 

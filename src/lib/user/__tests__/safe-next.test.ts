@@ -12,4 +12,9 @@ describe("safeNext", () => {
       assert.equal(safeNext(bad), "/");
     }
   });
+  it("rejects whitespace/control characters browsers would strip into //", () => {
+    for (const bad of ["/\t/evil.com", "/\n/evil.com", "/\r/evil.com", "/ /evil.com", "/\u0000/evil.com", "/\u007f/x"]) {
+      assert.equal(safeNext(bad), "/");
+    }
+  });
 });
