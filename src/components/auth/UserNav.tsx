@@ -102,7 +102,7 @@ export function UserNav() {
   return (
     <>
       <ButtonLink href="/contact?interest=Product%20Demonstration" size="normal" className={buttonClass}>
-        Book A Demo
+        Free Demo
       </ButtonLink>
       <button type="button" onClick={logout} disabled={busy}
         className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-white px-3 py-1.5 text-[11px] font-black whitespace-nowrap text-royal disabled:opacity-60 sm:px-4 sm:py-[8px] sm:text-[15px]">
