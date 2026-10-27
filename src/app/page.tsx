@@ -37,7 +37,7 @@ export default function HomePage() {
           </>
         }
         description="Animation, storytelling and creative tech that help young learners imagine more and make more."
-        cta={{ label: "Book a Demo ↗", href: "/demo" }}
+        cta={{ label: "Book a Demo ↗", href: "/contact?interest=Product%20Demonstration" }}
       />
 
       <Section>
@@ -55,9 +55,9 @@ export default function HomePage() {
           />
           <FeatureGrid columns={4}>
             <FeatureCard tone="blue" icon={<Icon name="wand" size={32} />} title="JaaDeX Animate" description="Bring drawings, ideas and classroom concepts to life with a hands-on animation experience." href="/schools" linkLabel="Explore animation" />
-            <FeatureCard tone="peach" icon={<Icon name="book" size={32} />} title="Storytelling Studio" description="Build characters, shape stories and turn imagination into meaningful visual narratives." href="/platform#storytelling" linkLabel="Find your story" />
-            <FeatureCard tone="lilac" icon={<Icon name="sparkles" size={32} />} title="AI Creative Learning" description="Discover thoughtful ways to use emerging AI tools for ideas, visuals and creative projects." href="/platform" linkLabel="Explore AI learning" />
-            <FeatureCard tone="mint" icon={<Icon name="clapperboard" size={32} />} title="AI Filmmaking" description="Learn the creative journey from concept and script to scenes, video and a finished film." href="/ai-filmmaking" linkLabel="View learning paths" />
+            <FeatureCard tone="peach" icon={<Icon name="book" size={32} />} title="Storytelling Studio" description="Build characters, shape stories and turn imagination into meaningful visual narratives." href="/schools" linkLabel="Find your story" />
+            <FeatureCard tone="lilac" icon={<Icon name="sparkles" size={32} />} title="AI Creative Learning" description="Discover thoughtful ways to use emerging AI tools for ideas, visuals and creative projects." href="/schools" linkLabel="Explore AI learning" />
+            <FeatureCard tone="mint" icon={<Icon name="clapperboard" size={32} />} title="AI Filmmaking" description="Learn the creative journey from concept and script to scenes, video and a finished film." href="/schools" linkLabel="View learning paths" />
           </FeatureGrid>
         </Container>
       </Section>
@@ -87,7 +87,7 @@ export default function HomePage() {
           </div>
           <div className="flex flex-wrap gap-[11px] md:justify-end max-md:mt-1.5">
             <ButtonLink href="/platform">Discover our platform →</ButtonLink>
-            <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration" variant="light">Partner with JaaDeX</ButtonLink>
+            <ButtonLink href="/contact" variant="light">Partner with JaaDeX</ButtonLink>
           </div>
         </Container>
       </section> */}
@@ -106,7 +106,7 @@ export default function HomePage() {
               description="Explore frames, movement, visual storytelling and the joy of making your own animation."
               footerNote="Learn through projects"
               footerIcon={<Icon name="puzzle" size={15} />}
-              href="/contact?interest=Animation%20Foundations"
+              href="/contact"
               linkLabel="Enquire →"
             />
             <CourseCard
@@ -119,7 +119,7 @@ export default function HomePage() {
               description="Shape an idea into a story with characters, scenes, storyboards and a clear creative vision."
               footerNote="Build your story"
               footerIcon={<Icon name="pencil" size={15} />}
-              href="/contact?interest=Story%20to%20Screen"
+              href="/contact"
               linkLabel="Enquire →"
             />
             <CourseCard
@@ -132,7 +132,7 @@ export default function HomePage() {
               description="Explore AI-assisted ideation, script development, visual creation, video workflows and editing."
               footerNote="Idea to film"
               footerIcon={<Icon name="clapperboard" size={15} />}
-              href="/contact?interest=AI%20Filmmaking%20Studio"
+              href="/contact"
               linkLabel="Enquire →"
             />
           </FeatureGrid>

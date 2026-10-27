@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import { ContactPageClient } from "@/components/ContactPageClient";
 import { Container } from "@/components/Container";
 import { Section } from "@/components/Section";
+import { getCurrentUser } from "@/lib/user/session";
 
 export const metadata: Metadata = { title: "Contact", description: "Contact JaaDeX about school packages, animation learning, AI filmmaking and partnerships." };
 
@@ -19,7 +21,16 @@ function InfoCard({ icon, title, children }: { icon: ReactNode; title: string; c
   );
 }
 
-export default function ContactPage() {
+/** Login required: the proxy redirect is UX only; this check is the boundary. */
+export default async function ContactPage({ searchParams }: PageProps<"/contact">) {
+  if (!(await getCurrentUser().catch(() => null))) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(await searchParams)) {
+      if (typeof value === "string") params.set(key, value);
+    }
+    const query = params.toString();
+    redirect(`/login?next=${encodeURIComponent(query ? `/contact?${query}` : "/contact")}`);
+  }
   return (
     <>
       <Section>

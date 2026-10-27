@@ -5,12 +5,14 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCsrfToken, authFetch } from "@/lib/admin-client/auth-fetch";
+import { Icon } from "@/components/Icon";
 
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // 3 MB source file ≈ 4 MB base64.
+const DESCRIPTION_MAX = 3000;
 
 const field =
-  "w-full rounded-xl border border-line bg-white px-4 py-2.5 text-[14px] text-navy outline-none transition-colors placeholder:text-muted/60 focus:border-navy/40";
-const label = "mb-1 block text-[12px] font-medium text-muted";
+  "w-full rounded-xl border border-[#8d9bc4] bg-white px-4 py-3 text-[15px] leading-snug text-navy outline-none transition-[border-color,box-shadow] placeholder:text-muted/70 hover:border-royal focus:border-royal focus:ring-4 focus:ring-royal/15";
+const label = "text-[13px] font-semibold text-navy";
 
 /**
  * Plain (non-SurveyJS) create-workshop form: image, title, description,
@@ -21,6 +23,7 @@ export function WorkshopForm() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [descriptionLength, setDescriptionLength] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
@@ -78,6 +81,7 @@ export function WorkshopForm() {
       setMessage({ kind: "ok", text: "Workshop published — it now appears on the public Workshops page." });
       form.reset();
       setPreview(null);
+      setDescriptionLength(0);
       if (fileRef.current) fileRef.current.value = "";
       router.refresh();
     } catch (err) {
@@ -88,72 +92,95 @@ export function WorkshopForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-4" noValidate>
-      <div className="grid gap-1">
-        <label className={label} htmlFor="workshop-image">
-          Workshop image
+    <form onSubmit={onSubmit} className="mx-auto grid max-w-[560px] gap-6" noValidate>
+      <div className="grid gap-2">
+        <label
+          htmlFor="workshop-image"
+          className="relative block cursor-pointer overflow-hidden rounded-2xl border-2 border-dashed border-[#8d9bc4] bg-[#f5f8ff] transition-colors hover:border-royal focus-within:border-royal focus-within:ring-4 focus-within:ring-royal/15"
+        >
+          <input
+            ref={fileRef}
+            id="workshop-image"
+            name="image"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            onChange={onPickImage}
+            className="sr-only"
+          />
+          {preview ? (
+            <>
+              <img src={preview} alt="Workshop image preview" className="h-52 w-full object-cover" />
+              <span className="absolute right-3 bottom-3 rounded-lg bg-navy/85 px-3 py-1.5 text-[12px] font-semibold text-white">
+                Change image
+              </span>
+            </>
+          ) : (
+            <span className="flex h-44 flex-col items-center justify-center gap-2 px-6 text-center">
+              <span className="grid size-11 place-items-center rounded-xl bg-white text-royal shadow-soft">
+                <Icon name="image" size={22} />
+              </span>
+              <span className="text-[14px] font-semibold text-navy">Choose an image</span>
+            </span>
+          )}
         </label>
-        <input
-          ref={fileRef}
-          id="workshop-image"
-          name="image"
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
-          onChange={onPickImage}
-          className="w-full cursor-pointer rounded-xl border border-line bg-white px-4 py-2.5 text-[13px] text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-line file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:text-navy"
-        />
-        {preview && <img src={preview} alt="Workshop image preview" className="mt-2 h-40 w-full rounded-xl border border-line object-cover" />}
       </div>
-      <div className="grid gap-1">
+
+      <div className="grid gap-2">
         <label className={label} htmlFor="workshop-title">
           Title
         </label>
         <input id="workshop-title" name="title" type="text" required maxLength={140} placeholder="e.g. Animation & Storytelling Bootcamp" className={field} />
       </div>
-      <div className="grid gap-1">
-        <label className={label} htmlFor="workshop-description">
-          Description
-        </label>
+
+      <div className="grid gap-2">
+        <div className="flex items-baseline justify-between gap-3">
+          <label className={label} htmlFor="workshop-description">
+            Description
+          </label>
+          <span className="text-[12px] text-muted tabular-nums">
+            {descriptionLength} / {DESCRIPTION_MAX}
+          </span>
+        </div>
         <textarea
           id="workshop-description"
           name="description"
           required
           minLength={10}
-          maxLength={3000}
-          rows={4}
-          placeholder="What is this workshop about?"
+          maxLength={DESCRIPTION_MAX}
+          rows={5}
+          placeholder="What is this workshop about? Who should attend?"
+          onChange={(e) => setDescriptionLength(e.currentTarget.value.length)}
           className={`${field} resize-y`}
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1">
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-2">
           <label className={label} htmlFor="workshop-date">
             Date
           </label>
           <input id="workshop-date" name="date" type="date" required className={field} />
         </div>
-        <div className="grid gap-1">
+        <div className="grid gap-2">
           <label className={label} htmlFor="workshop-location">
             Location
           </label>
           <input id="workshop-location" name="location" type="text" required maxLength={200} placeholder="e.g. RTIH, Mangalagiri" className={field} />
         </div>
       </div>
-      {message && (
-        <p
-          role="status"
-          className="text-[13px] text-muted"
-        >
-          {message.text}
+
+      <div className="flex flex-col-reverse gap-4 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <p role="status" className={`text-[13px] font-medium ${message?.kind === "error" ? "text-[#c1440e]" : "text-green"}`}>
+          {message?.text}
         </p>
-      )}
-      <button
-        type="submit"
-        disabled={busy}
-        className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-navy bg-navy px-5 py-2.5 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {busy ? "Publishing…" : "Publish workshop"}
-      </button>
+        <button
+          type="submit"
+          disabled={busy}
+          className="inline-flex h-12 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-royal px-6 text-[14px] font-semibold text-white shadow-pop-royal transition-[background-color,transform] hover:bg-royal-dark active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {busy ? "Publishing…" : "Publish workshop"}
+        </button>
+      </div>
     </form>
   );
 }

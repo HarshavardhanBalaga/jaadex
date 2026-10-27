@@ -55,6 +55,40 @@ export async function sendPasswordResetOtp(to: string, otp: string, expiresMinut
   await transport.sendMail({ from: c.mailFrom, to, subject, text });
 }
 
+/** Website-user registration code, sent to the user's own email. */
+export async function sendUserVerificationOtp(to: string, otp: string, expiresMinutes: number): Promise<void> {
+  const c = getAdminAuthConfig();
+  const transport = getTransport();
+  const subject = "Verify your JaaDeX account";
+  const text =
+    `Your JaaDeX verification code is: ${otp}\n\n` +
+    `It expires in ${expiresMinutes} minutes and can be used once.\n` +
+    `If you did not create a JaaDeX account, ignore this email.`;
+  if (!transport) {
+    // No SMTP configured (local dev): never throw, never expose OTP via API.
+    console.info("[user-auth] SMTP not configured; verification email skipped (dev only).");
+    return;
+  }
+  await transport.sendMail({ from: c.mailFrom, to, subject, text });
+}
+
+/** Website-user password-reset code, sent to the user's own email. */
+export async function sendUserPasswordResetOtp(to: string, otp: string, expiresMinutes: number): Promise<void> {
+  const c = getAdminAuthConfig();
+  const transport = getTransport();
+  const subject = "Reset your JaaDeX password";
+  const text =
+    `Your JaaDeX password reset code is: ${otp}\n\n` +
+    `It expires in ${expiresMinutes} minutes and can be used once.\n` +
+    `If you did not request this, ignore this email and your password will stay unchanged.`;
+  if (!transport) {
+    // No SMTP configured (local dev): never throw, never expose OTP via API.
+    console.info("[user-auth] SMTP not configured; password-reset email skipped (dev only).");
+    return;
+  }
+  await transport.sendMail({ from: c.mailFrom, to, subject, text });
+}
+
 /** New-enquiry alert to the team. Reply-To is the submitter so staff can answer directly. */
 export async function sendEnquiryNotification(enquiry: EnquiryForEmail): Promise<void> {
   const c = getAdminAuthConfig();

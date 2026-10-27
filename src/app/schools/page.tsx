@@ -50,8 +50,8 @@ export default function SchoolsPage() {
             into the classroom—giving students the tools to imagine, create, and communicate.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration">Partner With JaaDeX ↗</ButtonLink>
-            <ButtonLink href="/contact?interest=Product%20Demonstration" variant="light">Request School Demo</ButtonLink>
+            <ButtonLink href="/contact">Partner With JaaDeX ↗</ButtonLink>
+            <ButtonLink href="/contact" variant="light">Request School Demo</ButtonLink>
           </div>
         </Container>
       </section>
@@ -104,7 +104,7 @@ export default function SchoolsPage() {
       <Section topless>
         <Container>
           <ClosingCard title="Bring Creative Technology Into Your School" description="Partner with JaaDeX to build the next generation of creators.">
-            <ButtonLink href="/contact?interest=Product%20Demonstration">Request School Demo ↗</ButtonLink>
+            <ButtonLink href="/contact">Request School Demo ↗</ButtonLink>
           </ClosingCard>
         </Container>
       </Section>

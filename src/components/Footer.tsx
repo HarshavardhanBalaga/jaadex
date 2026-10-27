@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Brand } from "./Brand";
 import { Container } from "./Container";
 import { navigation } from "@/lib/site";
@@ -7,6 +10,10 @@ const columnTitle = "mt-[5px] mb-[15px] text-[13px] font-bold text-[#ffffff]";
 const columnLink = "my-[11px] block text-[13px] text-[#aebbe0] hover:text-gold";
 
 export function Footer() {
+  const pathname = usePathname();
+  // The admin dashboard is a full-screen app: no site chrome around it.
+  if (pathname.startsWith("/admin/dashboard")) return null;
+
   return (
     <footer className="bg-[#031552] pt-[43px] pb-5 text-[#cfd9f5]">
       <Container>

@@ -89,7 +89,7 @@ function CalendarWorkshopCard({ workshop }: { workshop: CalendarWorkshop }) {
         </p>
         <p className="mt-3 text-[14px] leading-[1.7] text-muted">{workshop.description}</p>
         <div className="mt-5">
-          <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration" variant="dark">Ask about this workshop ↗</ButtonLink>
+          <ButtonLink href="/contact" variant="dark">Ask about this workshop ↗</ButtonLink>
         </div>
       </div>
     </article>
@@ -143,7 +143,7 @@ export default async function WorkshopsPage() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <ButtonLink href="#workshops">Explore Workshops ↗</ButtonLink>
-            <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration" variant="light">Request a Workshop</ButtonLink>
+            <ButtonLink href="/contact" variant="light">Request a Workshop</ButtonLink>
           </div>
         </Container>
       </section>
@@ -194,7 +194,7 @@ export default async function WorkshopsPage() {
                   opportunities in the creative economy.
                 </p>
                 <div className="mt-5">
-                  <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration" variant="dark">Ask about this workshop ↗</ButtonLink>
+                  <ButtonLink href="/contact" variant="dark">Ask about this workshop ↗</ButtonLink>
                 </div>
               </div>
             </article>
@@ -250,7 +250,7 @@ export default async function WorkshopsPage() {
                 <h3 className="font-display text-[16px] font-bold text-navy">Need something custom?</h3>
                 <p className="text-[13px] leading-[1.6] text-muted">Workshops designed around your institution, audience, and objectives.</p>
               </div>
-              <a href="/contact?interest=Partnership%20or%20Collaboration" className="inline-flex items-center gap-1.5 rounded-full border border-royal/25 bg-white px-4 py-2 text-[13px] font-black text-royal transition-colors hover:border-royal hover:text-orange">
+              <a href="/contact" className="inline-flex items-center gap-1.5 rounded-full border border-royal/25 bg-white px-4 py-2 text-[13px] font-black text-royal transition-colors hover:border-royal hover:text-orange">
                 Design one with us <span aria-hidden="true">→</span>
               </a>
             </li>
@@ -324,7 +324,7 @@ export default async function WorkshopsPage() {
         <Container>
           <ClosingCard title="Bring a JaaDeX Workshop to Your Institution" description="Whether you are a school, college, university, organization, or creative community, JaaDeX can design workshops based on your audience and objectives.">
             <div className="flex flex-wrap gap-3">
-              <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration">Request a Workshop ↗</ButtonLink>
+              <ButtonLink href="/contact">Request a Workshop ↗</ButtonLink>
               <ButtonLink href="/contact" variant="light">Talk to Our Team</ButtonLink>
             </div>
           </ClosingCard>
