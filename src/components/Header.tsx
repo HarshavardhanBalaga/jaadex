@@ -94,7 +94,7 @@ export function Header() {
           </nav>
           <div className="flex shrink-0 items-center gap-2">
             <ButtonLink
-              href="/contact?interest=Product%20Demonstration"
+              href="/demo"
               size="normal"
               className="px-3 py-1.5 text-[11px] whitespace-nowrap sm:px-4 sm:py-[8px] sm:text-[15px]"
             >

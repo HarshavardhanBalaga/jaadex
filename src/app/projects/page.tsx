@@ -66,7 +66,7 @@ export default function ProjectsPage() {
                 </li>
               ))}
             </ul>
-            <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration" variant="dark">Explore the Kondapalli IP ↗</ButtonLink>
+            <ButtonLink href="/contact" variant="dark">Explore the Kondapalli IP ↗</ButtonLink>
           </div>
         </Container>
       </section>
@@ -143,7 +143,7 @@ export default function ProjectsPage() {
       <Section topless>
         <Container>
           <ClosingCard title="Have a Kondapalli story to tell?" description="We welcome conversations with schools, creators, cultural organizations, studios and potential project partners about the Kondapalli IP and beyond.">
-            <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration">Explore the Kondapalli IP ↗</ButtonLink>
+            <ButtonLink href="/contact">Explore the Kondapalli IP ↗</ButtonLink>
           </ClosingCard>
         </Container>
       </Section>

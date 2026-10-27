@@ -17,7 +17,7 @@ export default function AboutPage() {
   return (
     <>
       <PageHero eyebrow="About JaaDeX Innovision" title={<>Growing a generation of <span>creative thinkers.</span></>} description="JaaDeX Innovision Pvt Ltd is a creative technology company working at the intersection of education, animation, storytelling and digital creation. Our goal is to make creative tools and learning experiences more approachable for students and educators." art="🌱">
-        <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration">Connect with JaaDeX ↗</ButtonLink>
+        <ButtonLink href="/contact">Connect with JaaDeX ↗</ButtonLink>
       </PageHero>
 
       <Section>
@@ -50,7 +50,7 @@ export default function AboutPage() {
       <Section topless>
         <Container>
           <ClosingCard title="We are building with educators, creators and communities." description="We welcome conversations about school learning, creative projects, workshops and partnerships.">
-            <ButtonLink href="/contact?interest=Partnership%20or%20Collaboration">Explore collaboration ↗</ButtonLink>
+            <ButtonLink href="/contact">Explore collaboration ↗</ButtonLink>
           </ClosingCard>
         </Container>
       </Section>

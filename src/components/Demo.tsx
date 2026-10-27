@@ -9,7 +9,7 @@ import { Section } from "./Section";
 import { SchoolRows } from "./SchoolRows";
 import { SectionHeading } from "./SectionHeading";
 
-const demoHref = "/contact?interest=Product%20Demonstration";
+const demoHref = "/contact";
 
 /** Demo page: try JaaDeX, get a free demo and see what learners can do. */
 export function Demo() {

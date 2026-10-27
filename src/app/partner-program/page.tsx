@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: "Partner with JaaDeX to make learning more engaging through animation, storytelling and creative technology.",
 };
 
-const partnerHref = "/contact?interest=Partnership%20or%20Collaboration";
+const partnerHref = "/contact";
 
 const partners = [
   { icon: "school", label: "Schools" },

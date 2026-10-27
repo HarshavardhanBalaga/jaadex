@@ -17,7 +17,7 @@ export default function PlatformPage() {
   return (
     <>
       <PageHero eyebrow="The JaaDeX platform" title={<>Turn curiosity into <span>creation.</span></>} description="JaaDeX connects animation, storytelling and digital creativity in a learning experience that encourages students to explore ideas by making them real." art="🎨">
-        <ButtonLink href="/contact?interest=Product%20Demonstration">Request a demo ↗</ButtonLink>
+        <ButtonLink href="/contact">Request a demo ↗</ButtonLink>
         <ButtonLink href="/schools" variant="light">For schools</ButtonLink>
       </PageHero>
 
@@ -27,8 +27,8 @@ export default function PlatformPage() {
         <Container>
           <SectionHeading eyebrow="Explore the experience" title={<>One creative journey.<br />Many possibilities.</>} description="Build confidence by learning through hands-on creative projects." />
           <FeatureGrid>
-            <FeatureCard icon={<Icon name="layers" size={32} />} title="Animation creation" description="Explore frames, layers, movement and visual sequencing while making animated projects." href="/contact?interest=Animation%20and%20Storytelling" linkLabel="Ask about animation" />
-            <FeatureCard icon={<Icon name="book" size={32} />} title="Visual storytelling" description="Turn concepts into scenes and stories that help learners express what they understand." href="/contact?interest=Animation%20and%20Storytelling" linkLabel="Explore storytelling" />
+            <FeatureCard icon={<Icon name="layers" size={32} />} title="Animation creation" description="Explore frames, layers, movement and visual sequencing while making animated projects." href="/contact" linkLabel="Ask about animation" />
+            <FeatureCard icon={<Icon name="book" size={32} />} title="Visual storytelling" description="Turn concepts into scenes and stories that help learners express what they understand." href="/contact" linkLabel="Explore storytelling" />
             <FeatureCard icon={<Icon name="bulb" size={32} />} title="Creative thinking" description="Encourage experimentation, problem-solving and original ideas through project-based learning." href="/contact" linkLabel="Talk to our team" />
           </FeatureGrid>
         </Container>
@@ -36,7 +36,7 @@ export default function PlatformPage() {
 
       <div id="storytelling">
         <SplitFeature eyebrow="Our learning philosophy" title="From passive viewing to active making." description="We believe technology becomes more meaningful when learners use it to create. JaaDeX encourages students to experiment, design, create and reflect on their work." art="🚀" artLabel="Start with an idea" points={["Learning activities built around creating", "Room for individual expression and teamwork", "Creative technology for classroom and independent exploration"]}>
-          <ButtonLink href="/contact?interest=Product%20Demonstration" variant="dark">See how it works ↗</ButtonLink>
+          <ButtonLink href="/contact" variant="dark">See how it works ↗</ButtonLink>
         </SplitFeature>
       </div>
 

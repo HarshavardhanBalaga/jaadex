@@ -21,7 +21,7 @@ type IconName =
   | "layers"
   | "tree"
   | "wand"
-  | "monitor"
+  | "dashboard"
   | "laptop"
   | "wrench"
   | "plus"
@@ -52,7 +52,7 @@ const iconClass: Record<IconName, string> = {
   layers: "ri-layers-line",
   tree: "ri-tree-line",
   wand: "ri-magic-line",
-  monitor: "ri-monitor-line",
+  dashboard: "ri-dashboard-line",
   laptop: "ri-macbook-line",
   wrench: "ri-tools-line",
   plus: "ri-add-line",
