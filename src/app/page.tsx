@@ -37,7 +37,7 @@ export default function HomePage() {
           </>
         }
         description="Animation, storytelling and creative tech that help young learners imagine more and make more."
-        cta={{ label: "Book a Demo ↗", href: "/demo" }}
+        cta={{ label: "Book a Demo ↗", href: "/contact?interest=Product%20Demonstration" }}
       />
 
       <Section>

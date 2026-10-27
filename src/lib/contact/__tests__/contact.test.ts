@@ -32,9 +32,10 @@ describe("contact", () => {
     assert.equal(contactSchema.safeParse({ ...good, password: "extra" }).success, false);
   });
 
-  it("submit endpoint is public POST-only with rate limiting and no secrets in logs", () => {
+  it("submit endpoint is login-only POST with rate limiting and no secrets in logs", () => {
     const route = src("src/app/api/contact/route.ts");
     assert.match(route, /export async function POST/, "contact submit is POST-only");
+    assert.match(route, /getCurrentUser\(\)/, "contact submit requires a logged-in website user");
     assert.doesNotMatch(route, /export async function GET/, "contact must not accept GET (URL) input");
     assert.match(route, /checkRateLimit/, "contact submit is rate limited");
     assert.match(route, /no-store/i, "contact responses must not be cached");

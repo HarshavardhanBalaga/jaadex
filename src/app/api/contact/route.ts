@@ -4,6 +4,7 @@ import { DemoRequestModel } from "@/models/DemoRequest";
 import { contactSchema } from "@/lib/contact/validation";
 import { checkRateLimit, clientIp } from "@/lib/admin/rate-limit";
 import { sendEnquiryNotification } from "@/lib/admin/mailer";
+import { getCurrentUser } from "@/lib/user/session";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +19,13 @@ function fail(code: string, message: string, status: number): NextResponse {
 }
 
 /**
- * Public enquiry submission (Book a Demo / Contact us).
- * No login, no CSRF cookie: there is no authenticated session to forge, so
- * abuse is handled with validation + rate limiting + a honeypot field.
+ * Enquiry submission (Book a Demo / Contact us). Requires a logged-in
+ * website user. Abuse is also handled with validation + rate limiting +
+ * a honeypot field; SameSite=Lax on the session cookie blocks cross-site POSTs.
  */
 export async function POST(request: Request) {
+  const user = await getCurrentUser().catch(() => null);
+  if (!user) return fail("unauthenticated", "Please log in to send an enquiry.", 401);
   const limited = await checkRateLimit(`contact:${clientIp(request)}`, 5, 60).catch(() => null);
   if (limited && !limited.allowed) return fail("rate_limited", "Too many attempts. Try again later.", 429);
   let body: unknown = null;

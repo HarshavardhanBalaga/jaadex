@@ -6,9 +6,9 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { navigation } from "@/lib/site";
 import { Brand } from "./Brand";
-import { ButtonLink } from "./ButtonLink";
 import { Container } from "./Container";
 import { AdminNavLink } from "./admin/AdminNavLink";
+import { UserNav } from "./auth/UserNav";
 
 /** Top-level header links. /demo is reached through the Free Demo button, so it is not listed here. */
 const headerLinks = [
@@ -54,13 +54,9 @@ export function Header() {
             {/* <AdminNavLink onNavigate={() => setMenuOpen(false)} /> */}
           </nav>
           <div className="flex shrink-0 items-center gap-2">
-            <ButtonLink
-              href="/demo"
-              size="normal"
-              className="px-3 py-1.5 text-[11px] whitespace-nowrap sm:px-4 sm:py-[8px] sm:text-[15px]"
-            >
-              Free Demo
-            </ButtonLink>
+
+            <UserNav />
+
             <button
               className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line bg-white px-2.5 py-2 text-royal md:hidden"
               type="button"
