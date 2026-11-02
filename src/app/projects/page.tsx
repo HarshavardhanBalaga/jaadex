@@ -44,8 +44,8 @@ export default function ProjectsPage() {
         <Container className="grid items-center gap-[25px] md:grid-cols-[1.1fr_.9fr] md:gap-[54px]">
           <div className="relative overflow-hidden rounded-[32px] border border-line shadow-soft">
             <Image
-              src="/assets/kondapalli-ip.png"
-              alt="Kondapalli wooden toy characters reimagined as an animation universe"
+              src="/assets/Colorful%20Figurines%20on%20Red%20Shelf.png"
+              alt="Colorful Kondapalli wooden figurines displayed on a red shelf"
               width={900}
               height={900}
               className="h-auto w-full object-cover"
