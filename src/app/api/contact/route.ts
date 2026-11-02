@@ -1,7 +1,8 @@
 import { NextResponse, after } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { DemoRequestModel } from "@/models/DemoRequest";
-import { contactSchema } from "@/lib/contact/validation";
+import { createContactSchema } from "@/lib/contact/validation";
+import { listUpcomingWorkshopInterests } from "@/lib/workshops/queries";
 import { checkRateLimit, clientIp } from "@/lib/admin/rate-limit";
 import { sendEnquiryNotification } from "@/lib/admin/mailer";
 import { getCurrentUser } from "@/lib/user/session";
@@ -34,7 +35,8 @@ export async function POST(request: Request) {
   } catch {
     return fail("invalid_request", "Invalid request body.", 400);
   }
-  const parsed = contactSchema.safeParse(body);
+  const workshopInterests = await listUpcomingWorkshopInterests().catch(() => []);
+  const parsed = createContactSchema(workshopInterests).safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       {

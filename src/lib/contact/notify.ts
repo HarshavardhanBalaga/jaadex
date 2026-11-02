@@ -30,13 +30,13 @@ function oneLine(v: string, max: number): string {
 }
 
 export function buildEnquiryEmail(e: EnquiryForEmail, dashboardUrl: string): { subject: string; text: string } {
-  const subject = oneLine(`New enquiry: ${e.interest} — ${e.name}`, 150);
+  const subject = oneLine(`New enquiry: ${e.interest} — ${e.name}`, 260);
   const text =
     `A new enquiry was submitted on the JaaDeX website.\n\n` +
     `Name:         ${oneLine(e.name, 80)}\n` +
     `Email:        ${oneLine(e.email, 254)}\n` +
     `Organization: ${oneLine(e.organization, 100) || "-"}\n` +
-    `Interest:     ${oneLine(e.interest, 80)}\n` +
+    `Interest:     ${oneLine(e.interest, 160)}\n` +
     `Received:     ${e.createdAt.toISOString()}\n\n` +
     `Message:\n${e.message}\n\n` +
     `Reply to this email to answer the sender directly.\n` +

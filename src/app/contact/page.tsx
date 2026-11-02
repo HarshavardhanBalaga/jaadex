@@ -6,6 +6,7 @@ import { ContactPageClient } from "@/components/ContactPageClient";
 import { Container } from "@/components/Container";
 import { Section } from "@/components/Section";
 import { getCurrentUser } from "@/lib/user/session";
+import { listUpcomingWorkshopInterests } from "@/lib/workshops/queries";
 
 export const metadata: Metadata = { title: "Contact", description: "Contact JaaDeX about school packages, animation learning, AI filmmaking and partnerships." };
 
@@ -31,6 +32,8 @@ export default async function ContactPage({ searchParams }: PageProps<"/contact"
     const query = params.toString();
     redirect(`/login?next=${encodeURIComponent(query ? `/contact?${query}` : "/contact")}`);
   }
+  // Database trouble only hides the workshop topics; the rest of the form still works.
+  const workshopInterests = await listUpcomingWorkshopInterests().catch(() => []);
   return (
     <>
       <Section>
@@ -51,7 +54,7 @@ export default async function ContactPage({ searchParams }: PageProps<"/contact"
           <div className="rounded-[25px] border border-line bg-white p-[21px] shadow-[0_12px_30px_rgb(20_60_160/0.03)] md:p-[27px]">
             <h3 className="mb-[7px] font-display text-[22px] font-bold text-navy">Enquiry form</h3>
             <p className="mb-5 text-[13px] text-muted">Fields marked required must be completed.</p>
-            <ContactPageClient />
+            <ContactPageClient workshopInterests={workshopInterests} />
           </div>
         </Container>
       </Section>

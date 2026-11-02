@@ -92,7 +92,7 @@ export default function ProjectsPage() {
           <SectionHeading eyebrow="Project Categories" title="Our Key Project Areas" description="From classrooms to cultural heritage — each category connects creativity with purpose." />
           <div className="grid grid-cols-1 gap-[17px] md:grid-cols-2 lg:grid-cols-3">
             <article className="rounded-[25px] border border-line bg-paper px-[21px] py-6">
-              <div className="mb-[19px] grid size-16 place-items-center rounded-[20px] bg-gradient-to-br from-[#e2ebff] to-[#cfdefc] text-royal" aria-hidden="true"><Icon name="school" size={32} /></div>
+              <div className="mb-[19px] grid size-16 pace-items-center rounded-[20px] bg-gradient-to-br from-[#e2ebff] to-[#cfdefc] text-royal" aria-hidden="true"><Icon name="school" size={32} /></div>
               <h3 className="mb-2 font-display text-[19px] font-black text-navy">Creative Education Projects</h3>
               <p className="text-[13px] leading-[1.65] text-[#53628a]">Bringing animation, storytelling, and digital creativity into schools and learning environments.</p>
             </article>

@@ -4,8 +4,9 @@ import { ClosingCard } from "@/components/ClosingCard";
 import { Container } from "@/components/Container";
 import { Eyebrow } from "@/components/Eyebrow";
 import Image from "next/image";
-import { connectToDatabase } from "@/lib/mongodb";
-import { WorkshopModel } from "@/models/Workshop";
+import { workshopInterest } from "@/lib/contact/validation";
+import { isWorkshopUpcoming, workshopWhenWhere } from "@/lib/workshops/format";
+import { listWorkshops } from "@/lib/workshops/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -53,19 +54,11 @@ type CalendarWorkshop = {
   id: string;
   title: string;
   description: string;
-  date: string;
+  date: string | null;
   location: string;
   image: string;
   completed: boolean;
 };
-
-function formatWorkshopDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
-  } catch {
-    return "—";
-  }
-}
 
 /* eslint-disable @next/next/no-img-element */
 function CalendarWorkshopCard({ workshop }: { workshop: CalendarWorkshop }) {
@@ -84,12 +77,11 @@ function CalendarWorkshopCard({ workshop }: { workshop: CalendarWorkshop }) {
       </div>
       <div className="flex flex-1 flex-col p-6 md:p-7">
         <h3 className="font-display text-[clamp(22px,2.5vw,28px)] leading-[1.1] font-black tracking-[-1px] text-navy">{workshop.title}</h3>
-        <p className="mt-2 text-[13px] font-bold text-royal">
-          {formatWorkshopDate(workshop.date)} · {workshop.location}
-        </p>
+        <p className="mt-2 text-[13px] font-bold text-royal">{workshopWhenWhere(workshop.date, workshop.location)}</p>
         <p className="mt-3 text-[14px] leading-[1.7] text-muted">{workshop.description}</p>
         <div className="mt-5">
-          <ButtonLink href="/contact" variant="dark">Ask about this workshop ↗</ButtonLink>
+          {/* Upcoming workshops are enquiry topics, so preselect this one on the form. */}
+          <ButtonLink href={workshop.completed ? "/contact" : `/contact?interest=${encodeURIComponent(workshopInterest(workshop.title))}`} variant="dark">Ask about this workshop ↗</ButtonLink>
         </div>
       </div>
     </article>
@@ -99,24 +91,11 @@ function CalendarWorkshopCard({ workshop }: { workshop: CalendarWorkshop }) {
 
 async function loadCalendarWorkshops(): Promise<CalendarWorkshop[]> {
   try {
-    await connectToDatabase();
-    const docs = await WorkshopModel.find({})
-      .select({ title: 1, description: 1, date: 1, location: 1, image: 1 })
-      .sort({ date: -1 })
-      .limit(12)
-      .lean();
-    return docs.map((d) => {
-      const iso = d.date instanceof Date ? d.date.toISOString() : String(d.date);
-      return {
-        id: String(d._id),
-        title: d.title,
-        description: d.description,
-        date: iso,
-        location: d.location,
-        image: d.image,
-        completed: new Date(iso).getTime() < Date.now(),
-      };
-    });
+    const workshops = await listWorkshops(12);
+    return workshops.map((w) => ({
+      ...w,
+      completed: !isWorkshopUpcoming(w.date),
+    }));
   } catch {
     // DB down / not configured — section degrades to the static fallback card.
     return [];

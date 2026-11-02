@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { interests } from "@/lib/contact/validation";
+import { interests, workshopInterest } from "@/lib/contact/validation";
 
-export function ContactForm({ initialInterest = "" }: { initialInterest?: string }) {
+export function ContactForm({ initialInterest = "", workshopInterests = [] }: { initialInterest?: string; workshopInterests?: string[] }) {
   const router = useRouter();
   const [form, setForm] = useState({
     name: "",
     email: "",
     organization: "",
-    interest: (interests as readonly string[]).includes(initialInterest) ? initialInterest : "JaaDeX Animate for Schools",
+    interest: [...interests, ...workshopInterests].includes(initialInterest) ? initialInterest : "JaaDeX Animate for Schools",
     message: "",
     website: "",
   });
@@ -78,7 +78,14 @@ export function ContactForm({ initialInterest = "" }: { initialInterest?: string
         <input className={fieldClass} id="organization" name="organization" value={form.organization} onChange={(e) => update("organization", e.target.value)} placeholder="Organization name (optional)" />
       </FormRow>
       <FormRow label="I'm interested in *" htmlFor="interest" error={fieldErrors.interest?.[0]}>
-        <select className={fieldClass} id="interest" name="interest" value={form.interest} onChange={(e) => update("interest", e.target.value)}>{interests.map((interest) => <option key={interest}>{interest}</option>)}</select>
+        <select className={fieldClass} id="interest" name="interest" value={form.interest} onChange={(e) => update("interest", e.target.value)}>
+          {interests.map((interest) => <option key={interest}>{interest}</option>)}
+          {workshopInterests.length > 0 && (
+            <optgroup label="Upcoming workshops">
+              {workshopInterests.map((interest) => <option key={interest} value={interest}>{interest.slice(workshopInterest("").length)}</option>)}
+            </optgroup>
+          )}
+        </select>
       </FormRow>
       <FormRow label="Your message *" htmlFor="message" error={fieldErrors.message?.[0]}>
         <textarea className={fieldClass} id="message" name="message" required rows={4} value={form.message} onChange={(e) => update("message", e.target.value)} placeholder="Tell us about your needs or idea…" />

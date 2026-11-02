@@ -27,7 +27,9 @@ type IconName =
   | "plus"
   | "menu"
   | "close"
-  | "check";
+  | "check"
+  | "trash"
+  | "loader";
 
 const iconClass: Record<IconName, string> = {
   palette: "ri-palette-line",
@@ -59,6 +61,8 @@ const iconClass: Record<IconName, string> = {
   menu: "ri-menu-line",
   close: "ri-close-line",
   check: "ri-check-line",
+  trash: "ri-delete-bin-line",
+  loader: "ri-loader-4-line",
 };
 
 type IconProps = {

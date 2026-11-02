@@ -44,6 +44,11 @@
   font-weight: 700;
 }
 
+/* The page behind an open modal doesn't scroll. */
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
 /* Marching-ants animation for the snake timeline path on /schools */
 @keyframes snake-march {
   to {

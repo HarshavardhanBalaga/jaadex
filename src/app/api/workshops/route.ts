@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { WorkshopModel } from "@/models/Workshop";
+import { DUPLICATE_TITLE_MESSAGE, isDuplicateKeyError, isWorkshopTitleTaken, listWorkshops } from "@/lib/workshops/queries";
 import { workshopSchema } from "@/lib/workshops/validation";
 import { validateCsrf } from "@/lib/admin/csrf";
 import { requireAdminFromToken } from "@/lib/admin/auth";
@@ -15,28 +16,10 @@ function fail(code: string, message: string, status: number): NextResponse {
   return NextResponse.json({ success: false, error: { code, message } }, { status, headers: NO_STORE });
 }
 
-/** Public workshop list — newest date first. Drives the "Currently on the calendar" section. */
+/** Public workshop list — undated first, then newest date first. Drives the "Currently on the calendar" section. */
 export async function GET() {
   try {
-    await connectToDatabase();
-    const docs = await WorkshopModel.find({})
-      .select({ title: 1, description: 1, date: 1, location: 1, image: 1 })
-      .sort({ date: -1 })
-      .lean();
-    return NextResponse.json(
-      {
-        success: true,
-        workshops: docs.map((d) => ({
-          id: String(d._id),
-          title: d.title,
-          description: d.description,
-          date: d.date instanceof Date ? d.date.toISOString() : String(d.date),
-          location: d.location,
-          image: d.image,
-        })),
-      },
-      { headers: NO_STORE },
-    );
+    return NextResponse.json({ success: true, workshops: await listWorkshops() }, { headers: NO_STORE });
   } catch (err) {
     console.error("[workshops] unavailable:", err instanceof Error ? err.message : err);
     return fail("unavailable", "Service temporarily unavailable.", 503);
@@ -69,6 +52,7 @@ export async function POST(request: Request) {
     );
   }
   try {
+    if (await isWorkshopTitleTaken(parsed.data.title)) return fail("duplicate_title", DUPLICATE_TITLE_MESSAGE, 409);
     await connectToDatabase();
     const created = await WorkshopModel.create({
       title: parsed.data.title,
@@ -82,6 +66,7 @@ export async function POST(request: Request) {
       { status: 201, headers: NO_STORE },
     );
   } catch (err) {
+    if (isDuplicateKeyError(err)) return fail("duplicate_title", DUPLICATE_TITLE_MESSAGE, 409);
     console.error("[workshops] create unavailable:", err instanceof Error ? err.message : err);
     return fail("unavailable", "Service temporarily unavailable. Try again later.", 503);
   }

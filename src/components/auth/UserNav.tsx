@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ButtonLink } from "@/components/ButtonLink";
 import { postJson } from "@/lib/admin-client/auth-fetch";
@@ -10,14 +10,16 @@ import { postJson } from "@/lib/admin-client/auth-fetch";
  * "Book A Demo" + "Log out". Display only — /contact and /api/contact
  * re-verify the session on the server.
  *
- * First paint uses a display-only hint (boolean, no tokens) from the last
- * check, then the live /me check revalidates it (same pattern as AdminNavLink).
+ * After hydration a display-only hint (boolean, no tokens) from the last check
+ * is shown, then the live /me check revalidates it. The hint must not be read
+ * during the first render: the server has no sessionStorage, so the HTML would differ.
  */
 const HINT_KEY = "jaadex.nav.user";
+const subscribeToNothing = () => () => {};
 
 function readHint(): boolean | null {
   try {
-    if (typeof window === "undefined" || !window.sessionStorage) return null;
+    if (!window.sessionStorage) return null;
     const v = window.sessionStorage.getItem(HINT_KEY);
     if (v === "1") return true;
     if (v === "0") return false;
@@ -40,7 +42,10 @@ const buttonClass = "px-3 py-1.5 text-[11px] whitespace-nowrap sm:px-4 sm:py-[8p
 export function UserNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const [loggedIn, setLoggedIn] = useState<boolean | null>(() => readHint());
+  // Server + hydration render get null; React then re-renders with the stored hint.
+  const hint = useSyncExternalStore(subscribeToNothing, readHint, () => null);
+  const [liveStatus, setLoggedIn] = useState<boolean | null>(null);
+  const loggedIn = liveStatus ?? hint;
   const [busy, setBusy] = useState(false);
   // Bumped on tab focus so a login/logout in another tab is reflected.
   const [refresh, setRefresh] = useState(0);
@@ -64,7 +69,7 @@ export function UserNav() {
       } catch {
         // Network failure: keep the last-known hint.
       }
-      if (!cancelled) setLoggedIn((prev) => (prev === null ? false : prev));
+      if (!cancelled) setLoggedIn((prev) => prev ?? readHint() ?? false);
     })();
     return () => {
       cancelled = true;

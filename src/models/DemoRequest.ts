@@ -20,7 +20,8 @@ const DemoRequestSchema = new Schema<DemoRequestDoc>(
     name: { type: String, required: true, trim: true, maxlength: 80 },
     email: { type: String, required: true, lowercase: true, trim: true, maxlength: 254 },
     organization: { type: String, default: "", trim: true, maxlength: 100 },
-    interest: { type: String, required: true, trim: true, maxlength: 80 },
+    // Long enough for "Workshop: " + a 140-character workshop title.
+    interest: { type: String, required: true, trim: true, maxlength: 160 },
     message: { type: String, required: true, trim: true, maxlength: 2000 },
     status: { type: String, enum: ["new", "read", "archived"], required: true, default: "new" },
   },
@@ -29,6 +30,9 @@ const DemoRequestSchema = new Schema<DemoRequestDoc>(
 
 DemoRequestSchema.index({ status: 1, createdAt: -1 });
 DemoRequestSchema.index({ createdAt: -1 });
+
+// Dev hot reload keeps mongoose.models alive: drop the old model so schema edits apply without a restart.
+if (process.env.NODE_ENV === "development" && mongoose.models.DemoRequest) mongoose.deleteModel("DemoRequest");
 
 export const DemoRequestModel: Model<DemoRequestDoc> =
   mongoose.models.DemoRequest ?? mongoose.model<DemoRequestDoc>("DemoRequest", DemoRequestSchema);

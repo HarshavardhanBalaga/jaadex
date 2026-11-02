@@ -5,13 +5,13 @@ import { requireAdminFromToken } from "@/lib/admin/auth";
 import { getAdminAuthConfig } from "@/lib/admin/auth-config";
 import { AdminModel } from "@/models/Admin";
 import { DemoRequestModel } from "@/models/DemoRequest";
-import { WorkshopModel } from "@/models/Workshop";
+import { isWorkshopUpcoming } from "@/lib/workshops/format";
+import { listWorkshops } from "@/lib/workshops/queries";
 import { AdminLogoutButton } from "@/components/admin/AdminLogoutButton";
 import { Icon } from "@/components/Icon";
 import { AdminDashboardShell, type AdminSection } from "@/components/admin/AdminDashboardShell";
-import { WorkshopForm } from "@/components/admin/WorkshopForm";
 import { WorkshopList, type WorkshopListItem } from "@/components/admin/WorkshopList";
-import { interests } from "@/lib/contact/validation";
+import { interests, workshopInterest } from "@/lib/contact/validation";
 
 export const metadata: Metadata = { title: "Admin Dashboard", description: "JaaDeX admin dashboard." };
 export const dynamic = "force-dynamic";
@@ -144,24 +144,16 @@ export default async function AdminDashboardPage() {
       },
     ]);
     topicCounts = new Map(topicDocs.map((t) => [t._id, { total: t.total, newCount: t.newCount }]));
-    const wsDocs = await WorkshopModel.find({})
-      .select({ title: 1, description: 1, date: 1, location: 1, image: 1 })
-      .sort({ date: -1 })
-      .lean();
-    workshops = wsDocs.map((d) => ({
-      id: String(d._id),
-      title: d.title,
-      description: d.description,
-      date: d.date instanceof Date ? d.date.toISOString() : String(d.date),
-      location: d.location,
-      image: d.image,
-    }));
+    workshops = await listWorkshops();
   } catch {
     redirect("/admin/login");
   }
   const newRequests = requests.filter((r) => r.status === "new").length;
   const activeAdmins = allAdmins.filter((a) => a.status === "active").length;
-  const upcoming = workshops.filter((w) => new Date(w.date).getTime() >= Date.now()).length;
+  const upcomingWorkshops = workshops.filter((w) => isWorkshopUpcoming(w.date));
+  const upcoming = upcomingWorkshops.length;
+  // Fixed topics + upcoming workshops + anything already enquired about, e.g. a workshop that has since finished.
+  const topics = [...new Set<string>([...interests, ...upcomingWorkshops.map((w) => workshopInterest(w.title)), ...topicCounts.keys()])];
 
   const sections: AdminSection[] = [
     {
@@ -213,7 +205,7 @@ export default async function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {interests.map((topic) => {
+                {topics.map((topic) => {
                   const count = topicCounts.get(topic) ?? { total: 0, newCount: 0 };
                   return (
                     <tr key={topic}>
@@ -281,16 +273,9 @@ export default async function AdminDashboardPage() {
       label: "Workshops",
       icon: "calendar",
       content: (
-        <div className="grid gap-6">
-          <Card title="Publish a workshop" subtitle="Appears on the Workshops page after publishing.">
-            <div className="p-5">
-              <WorkshopForm />
-            </div>
-          </Card>
-          <Card title="Published workshops" subtitle="Currently on the calendar.">
-            <WorkshopList workshops={workshops} />
-          </Card>
-        </div>
+        <Card title="Published workshops" subtitle="Currently on the calendar.">
+          <WorkshopList workshops={workshops} />
+        </Card>
       ),
     },
     {

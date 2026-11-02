@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { contactSchema } from "../validation.ts";
+import { contactSchema, createContactSchema, workshopInterest } from "../validation.ts";
 import { buildEnquiryEmail, parseNotifyEmails } from "../notify.ts";
 
 const root = process.cwd();
@@ -30,6 +30,20 @@ describe("contact", () => {
     assert.equal(contactSchema.safeParse({ ...good, message: "short" }).success, false);
     assert.equal(contactSchema.safeParse({ ...good, website: "spam-bot" }).success, false);
     assert.equal(contactSchema.safeParse({ ...good, password: "extra" }).success, false);
+  });
+
+  it("accepts a workshop topic only while that workshop is offered", () => {
+    const good = {
+      name: "Priya Sharma",
+      email: "priya@example.com",
+      interest: workshopInterest("AI Filmmaking"),
+      message: "We would like to attend this workshop.",
+    };
+    assert.equal(createContactSchema([workshopInterest("AI Filmmaking")]).safeParse(good).success, true);
+    assert.equal(createContactSchema([workshopInterest("Other")]).safeParse(good).success, false);
+    assert.equal(contactSchema.safeParse(good).success, false);
+    const fixed = { ...good, interest: "General Enquiry" };
+    assert.equal(createContactSchema([workshopInterest("AI Filmmaking")]).safeParse(fixed).success, true);
   });
 
   it("submit endpoint is login-only POST with rate limiting and no secrets in logs", () => {
