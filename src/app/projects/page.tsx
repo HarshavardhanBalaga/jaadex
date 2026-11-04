@@ -142,9 +142,11 @@ export default function ProjectsPage() {
 
       <Section topless>
         <Container>
+
           <ClosingCard title="Have a Kondapalli story to tell?" description="We welcome conversations with schools, creators, cultural organizations, studios and potential project partners about the Kondapalli IP and beyond.">
             <ButtonLink href="/contact">Explore the Kondapalli IP ↗</ButtonLink>
           </ClosingCard>
+          
         </Container>
       </Section>
     </>
