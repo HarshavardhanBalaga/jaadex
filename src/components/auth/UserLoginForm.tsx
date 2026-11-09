@@ -9,7 +9,7 @@ import { getCsrfToken, postJson } from "@/lib/admin-client/auth-fetch";
 const inputClass =
   "w-full rounded-xl border border-[#cfd9f0] bg-white px-[13px] py-3 text-ink outline-none focus:border-royal focus:ring-[3px] focus:ring-royal/10";
 const primaryButtonClass =
-  "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-orange px-5 py-[13px] text-center font-black text-white shadow-pop-orange transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none";
+  "inline-flex w-auto cursor-pointer items-center justify-center gap-2 rounded-full bg-orange px-8 py-[13px] text-center font-black text-white shadow-pop-orange transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none";
 const linkButtonClass = "text-center text-[13px] font-bold text-royal hover:underline";
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -154,7 +154,7 @@ export function UserLoginForm({ next }: { next: string }) {
   const infoBox = info ? <p role="status" className="rounded-xl bg-[#e3ecff] px-3 py-2.5 text-[13px] font-bold text-royal">{info}</p> : null;
   const errorBox = error ? <p role="alert" className="rounded-xl bg-[#ffe9e4] px-3 py-2.5 text-[13px] font-bold text-[#a3410a]">{error}</p> : null;
   const emailField = (
-    <div className="grid gap-1.5">
+    <div className="grid gap-2">
       <label htmlFor="user-email" className="text-xs font-black text-[#2b3b78]">Email *</label>
       <input id="user-email" type="email" required autoComplete="username" value={email}
         onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={inputClass} />
@@ -212,10 +212,10 @@ export function UserLoginForm({ next }: { next: string }) {
 
   return (
     // method="post" is defense-in-depth: a native submission never puts credentials in the URL.
-    <form onSubmit={submit} method="post" action="/api/auth/login" className="grid gap-3.5">
+    <form onSubmit={submit} method="post" action="/api/auth/login" className="grid gap-5">
       {infoBox}
       {emailField}
-      <div className="grid gap-1.5">
+      <div className="grid gap-2">
         <div className="flex items-center justify-between gap-3">
           <label htmlFor="user-password" className="text-xs font-black text-[#2b3b78]">Password *</label>
           <button type="button" onClick={() => goTo("forgot")} className="text-xs font-bold text-royal hover:underline">
@@ -226,15 +226,14 @@ export function UserLoginForm({ next }: { next: string }) {
           onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className={inputClass} />
       </div>
       {errorBox}
-      <button type="submit" disabled={busy} className={primaryButtonClass}>
-        {busy ? "Signing in…" : "Log in →"}
-      </button>
-      <p className="text-center text-[13px] text-muted">
-        New to JaaDeX?{" "}
-        <Link href={`/register?next=${encodeURIComponent(next)}`} className="font-bold text-royal hover:underline">
+      <div className="flex items-center justify-between gap-4">
+        <Link href={`/register?next=${encodeURIComponent(next)}`} className="text-xs font-bold text-royal hover:underline">
           Create an account
         </Link>
-      </p>
+        <button type="submit" disabled={busy} className={primaryButtonClass}>
+          {busy ? "Signing in…" : "Log in →"}
+        </button>
+      </div>
     </form>
   );
 }

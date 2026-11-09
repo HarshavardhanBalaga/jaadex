@@ -34,7 +34,7 @@ async function postJson(url: string, body: unknown, retried = false): Promise<{ 
 }
 
 const inputClass =
-  "w-full rounded-xl border border-[#cfd9f0] bg-white px-[13px] py-3 text-ink outline-none focus:border-royal focus:ring-[3px] focus:ring-royal/10";
+  "w-full max-w-[440px] rounded-xl border border-[#cfd9f0] bg-white px-[13px] py-3 text-ink outline-none focus:border-royal focus:ring-[3px] focus:ring-royal/10";
 
 export function AdminLoginForm({ googleEnabled = false, googleError = false }: {
   googleEnabled?: boolean;
@@ -160,7 +160,7 @@ export function AdminLoginForm({ googleEnabled = false, googleError = false }: {
       <div role="status" className="grid gap-3.5">
         <p className="rounded-xl bg-[#e3ecff] px-3 py-2.5 text-[13px] font-bold text-royal">Password updated. Please log in with your new password.</p>
         <button type="button" onClick={(e) => backToLogin(e)}
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-royal px-5 py-[13px] text-center font-black text-white shadow-pop-royal transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transition-none">
+          className="inline-flex w-auto self-start cursor-pointer items-center justify-center gap-2 rounded-full bg-royal px-8 py-[13px] text-center font-black text-white shadow-pop-royal transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transition-none">
           Back to sign in →
         </button>
       </div>
@@ -177,7 +177,7 @@ export function AdminLoginForm({ googleEnabled = false, googleError = false }: {
         {info ? <p role="status" className="rounded-xl bg-[#e3ecff] px-3 py-2.5 text-[13px] font-bold text-royal">{info}</p> : null}
         {error ? <p role="alert" className="rounded-xl bg-[#ffe9e4] px-3 py-2.5 text-[13px] font-bold text-[#a3410a]">{error}</p> : null}
         <button type="submit" disabled={busy}
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-royal px-5 py-[13px] text-center font-black text-white shadow-pop-royal transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none">
+          className="inline-flex w-auto self-start cursor-pointer items-center justify-center gap-2 rounded-full bg-royal px-8 py-[13px] text-center font-black text-white shadow-pop-royal transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none">
           {busy ? "Sending…" : "Send reset code →"}
         </button>
         <button type="button" onClick={(e) => backToLogin(e)} className="text-center text-[13px] font-bold text-royal hover:underline">
@@ -208,7 +208,7 @@ export function AdminLoginForm({ googleEnabled = false, googleError = false }: {
         </div>
         {error ? <p role="alert" className="rounded-xl bg-[#ffe9e4] px-3 py-2.5 text-[13px] font-bold text-[#a3410a]">{error}</p> : null}
         <button type="submit" disabled={busy}
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-royal px-5 py-[13px] text-center font-black text-white shadow-pop-royal transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none">
+          className="inline-flex w-auto self-start cursor-pointer items-center justify-center gap-2 rounded-full bg-royal px-8 py-[13px] text-center font-black text-white shadow-pop-royal transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none">
           {busy ? "Updating…" : "Update password →"}
         </button>
         <button type="button" onClick={(e) => backToLogin(e)} className="text-center text-[13px] font-bold text-royal hover:underline">
@@ -231,7 +231,7 @@ export function AdminLoginForm({ googleEnabled = false, googleError = false }: {
         <>
           {/* Plain navigation: the server route handles state/PKCE and the redirect to Google. */}
           <a href="/api/admin/auth/google/start"
-            className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-[#cfd9f0] bg-white px-5 py-3 text-center font-black text-navy transition-colors duration-200 hover:bg-[#f3f6fd]">
+            className="inline-flex w-auto self-start items-center justify-center gap-2.5 rounded-full border border-[#cfd9f0] bg-white px-8 py-3 text-center font-black text-navy transition-colors duration-200 hover:bg-[#f3f6fd]">
             <i className="ri-google-fill text-[18px] text-royal" aria-hidden="true" />
             Continue with Google
           </a>
@@ -252,7 +252,7 @@ export function AdminLoginForm({ googleEnabled = false, googleError = false }: {
       </div>
       {error ? <p role="alert" className="rounded-xl bg-[#ffe9e4] px-3 py-2.5 text-[13px] font-bold text-[#a3410a]">{error}</p> : null}
       <button type="submit" disabled={busy}
-        className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-royal px-5 py-[13px] text-center font-black text-white shadow-pop-royal transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none">
+        className="inline-flex w-auto self-start cursor-pointer items-center justify-center gap-2 rounded-full bg-royal px-8 py-[13px] text-center font-black text-white shadow-pop-royal transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none">
         {busy ? "Signing in…" : "Sign in →"}
       </button>
       <div className="flex items-center justify-between gap-3 text-[13px] font-bold text-royal">

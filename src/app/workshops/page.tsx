@@ -158,7 +158,7 @@ export default async function WorkshopsPage() {
                 even after new workshops are published from the admin dashboard. */}
             <article className="relative flex flex-col overflow-hidden rounded-[25px] border border-line bg-paper shadow-[0_8px_22px_rgb(20_60_160/0.05)]">
               <div className="relative h-52 overflow-hidden">
-                <Image src="/assets/workshop-showcase.jpg" alt="Amaravati Creative Economy Workshop gathering" fill className="object-cover" sizes="(max-width: 768px) 100vw, 480px" />
+                <Image src="/assets/DSC02220.JPG" alt="Amaravati Creative Economy Workshop gathering" fill className="object-cover" sizes="(max-width: 768px) 100vw, 480px" />
                 <span className="absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full bg-[#34a334] px-3.5 py-1.5 text-[11px] font-black tracking-[1px] text-white uppercase">
                   <span className="size-1.5 rounded-full bg-white" aria-hidden="true" /> Completed
                 </span>

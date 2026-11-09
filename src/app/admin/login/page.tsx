@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Container } from "@/components/Container";
-import { PageHero } from "@/components/PageHero";
 import { Section } from "@/components/Section";
 import { AdminLoginForm } from "@/components/admin/AdminLoginForm";
 import { isGoogleOAuthEnabled } from "@/lib/oauth/google-config";
@@ -12,12 +11,6 @@ export default async function AdminLoginPage({ searchParams }: PageProps<"/admin
   const { error } = await searchParams;
   return (
     <>
-      <PageHero
-        eyebrow="Admin access"
-        title={<>Welcome back, <span>admin.</span></>}
-        description="Sign in with your administrator account to open the dashboard."
-        art="🔐"
-      />
       <Section>
         <Container className="max-w-[560px]">
           <div className="rounded-[25px] border border-line bg-white p-[21px] shadow-[0_12px_30px_rgb(20_60_160/0.06)] md:p-[27px]">

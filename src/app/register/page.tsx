@@ -22,7 +22,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
         art="✨"
       />
       <Section>
-        <Container className="max-w-[560px]">
+        <Container className="max-w-[448px]">
           <div className="rounded-[25px] border border-line bg-white p-[21px] shadow-[0_12px_30px_rgb(20_60_160/0.06)] md:p-[27px]">
             <h2 className="mb-[7px] font-display text-[22px] font-bold text-navy">Register</h2>
             <p className="mb-5 text-[13px] text-muted">All fields are required.</p>
