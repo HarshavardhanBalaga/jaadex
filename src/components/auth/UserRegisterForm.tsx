@@ -7,7 +7,7 @@ import { registerSchema } from "@/lib/admin/validation";
 import { getCsrfToken, postJson } from "@/lib/admin-client/auth-fetch";
 
 const inputClass =
-  "w-full rounded-xl border border-[#cfd9f0] bg-white px-[13px] py-3 text-ink outline-none focus:border-royal focus:ring-[3px] focus:ring-royal/10";
+  "w-full max-w-[440px] rounded-xl border border-[#cfd9f0] bg-white px-[13px] py-3 text-ink outline-none focus:border-royal focus:ring-[3px] focus:ring-royal/10";
 
 function errMsg(data: Record<string, unknown>, fallback: string): string {
   if (typeof data?.error === "object" && data.error !== null && "message" in data.error) {
@@ -110,7 +110,7 @@ export function UserRegisterForm({ next }: { next: string }) {
         </div>
         {error ? <p role="alert" className="rounded-xl bg-[#ffe9e4] px-3 py-2.5 text-[13px] font-bold text-[#a3410a]">{error}</p> : null}
         <button type="submit" disabled={busy}
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-orange px-5 py-[13px] text-center font-black text-white shadow-pop-orange disabled:opacity-60">
+          className="inline-flex w-auto self-start cursor-pointer items-center justify-center gap-2 rounded-full bg-orange px-8 py-[13px] text-center font-black text-white shadow-pop-orange disabled:opacity-60">
           {busy ? "Verifying…" : "Verify & continue →"}
         </button>
         <button type="button" onClick={() => void sendCode(true)} disabled={busy || resendIn > 0}
@@ -149,7 +149,7 @@ export function UserRegisterForm({ next }: { next: string }) {
       </div>
       {error ? <p role="alert" className="rounded-xl bg-[#ffe9e4] px-3 py-2.5 text-[13px] font-bold text-[#a3410a]">{error}</p> : null}
       <button type="submit" disabled={busy}
-        className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-orange px-5 py-[13px] text-center font-black text-white shadow-pop-orange disabled:opacity-60">
+        className="inline-flex w-auto self-start cursor-pointer items-center justify-center gap-2 rounded-full bg-orange px-8 py-[13px] text-center font-black text-white shadow-pop-orange disabled:opacity-60">
         {busy ? "Sending code…" : "Create account →"}
       </button>
       <p className="text-center text-[13px] text-muted">
