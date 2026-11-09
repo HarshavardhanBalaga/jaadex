@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Container } from "@/components/Container";
-import { PageHero } from "@/components/PageHero";
 import { Section } from "@/components/Section";
 import { UserRegisterForm } from "@/components/auth/UserRegisterForm";
 import { getCurrentUser } from "@/lib/user/session";
@@ -15,12 +14,6 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
   if (await getCurrentUser().catch(() => null)) redirect(next);
   return (
     <>
-      <PageHero
-        eyebrow="Join JaaDeX"
-        title={<>Create your <span>account.</span></>}
-        description="We'll email you a code to verify your address. It only takes a minute."
-        art="✨"
-      />
       <Section>
         <Container className="max-w-[448px]">
           <div className="rounded-[25px] border border-line bg-white p-[21px] shadow-[0_12px_30px_rgb(20_60_160/0.06)] md:p-[27px]">
