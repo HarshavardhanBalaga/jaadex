@@ -10,6 +10,7 @@ import { Icon } from "@/components/Icon";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { Toast } from "@/components/admin/Toast";
 import { WorkshopForm } from "@/components/admin/WorkshopForm";
+import { WorkshopRegistrationsDialog } from "@/components/admin/WorkshopRegistrationsDialog";
 
 export type WorkshopListItem = {
   id: string;
@@ -18,7 +19,14 @@ export type WorkshopListItem = {
   date: string | null; // ISO, null = to be announced
   location: string; // "" = to be announced
   image: string; // data URL
+  registration: { enabled: boolean; capacity: number | null; count: number }; // capacity null = unlimited
 };
+
+function registrationSummary({ enabled, capacity, count }: WorkshopListItem["registration"]): string {
+  const seats = capacity === null ? `${count} registered` : `${count} / ${capacity} seats`;
+  if (!enabled) return count > 0 ? `Registration off · ${seats}` : "Registration off";
+  return capacity !== null && count >= capacity ? `Registration full · ${seats}` : `Registration open · ${seats}`;
+}
 
 const rowButton =
   "inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12px] font-medium text-muted transition-colors";
@@ -31,6 +39,9 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [registrationsTarget, setRegistrationsTarget] = useState<WorkshopListItem | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<{ id: string; message: string } | null>(null);
   const [isRefreshing, startRefresh] = useTransition();
   const dismissToast = useCallback(() => setToast(null), []);
   const deleteBusy = deleting || isRefreshing;
@@ -57,6 +68,31 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
       setDeleteError(err instanceof Error ? err.message : "Something went wrong. Try again.");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function toggleRegistration(w: WorkshopListItem) {
+    if (togglingId) return;
+    const enabled = !w.registration.enabled;
+    setTogglingId(w.id);
+    setToggleError(null);
+    try {
+      const csrf = await getCsrfToken();
+      const res = await authFetch(`/api/workshops/${w.id}/registration`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ enabled, capacity: w.registration.capacity }),
+      });
+      const json = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+      if (!res.ok) throw new Error(json?.error?.message ?? "Could not change registration. Try again.");
+      startRefresh(() => {
+        router.refresh();
+        setToast(enabled ? `Registration opened for “${w.title}”.` : `Registration closed for “${w.title}”.`);
+      });
+    } catch (err) {
+      setToggleError({ id: w.id, message: err instanceof Error ? err.message : "Something went wrong. Try again." });
+    } finally {
+      setTogglingId(null);
     }
   }
 
@@ -89,9 +125,51 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
                 <div className="min-w-0 flex-1">
                   <h4 className="truncate text-[14px] font-semibold text-navy">{w.title}</h4>
                   <p className="mt-0.5 text-[12px] text-muted">{workshopWhenWhere(w.date, w.location)}</p>
+                  <p className={`mt-0.5 text-[12px] font-medium ${w.registration.enabled ? "text-green" : "text-muted"}`}>
+                    {registrationSummary(w.registration)}
+                  </p>
+                  {toggleError?.id === w.id && (
+                    <p role="alert" className="mt-0.5 text-[12px] font-medium text-[#c1440e]">
+                      {toggleError.message}
+                    </p>
+                  )}
                 </div>
               </div>
-              <div className="ml-auto flex shrink-0 items-center gap-2">
+              <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
+                {/* Opening needs an upcoming workshop; an open one can always be closed. */}
+                {(isWorkshopUpcoming(w.date) || w.registration.enabled) && (
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-[12px] font-medium text-muted has-disabled:cursor-wait">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={w.registration.enabled}
+                      aria-label={`Registration for ${w.title}`}
+                      disabled={togglingId !== null || isRefreshing}
+                      onClick={() => void toggleRegistration(w)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:cursor-wait disabled:opacity-60 ${
+                        w.registration.enabled ? "bg-green" : "bg-[#c5cee6]"
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`size-5 rounded-full bg-white shadow transition-transform motion-reduce:transition-none ${
+                          w.registration.enabled ? "translate-x-[22px]" : "translate-x-0.5"
+                        }`}
+                      />
+                    </button>
+                    Register now
+                  </label>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setRegistrationsTarget(w)}
+                  aria-haspopup="dialog"
+                  aria-label={`Registrations for ${w.title}`}
+                  className={`${rowButton} hover:border-royal/40 hover:text-royal`}
+                >
+                  <Icon name="users" size={14} />
+                  Registrations ({w.registration.count})
+                </button>
                 {isWorkshopUpcoming(w.date) && (
                   <button
                     type="button"
@@ -138,7 +216,11 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
       {deleteTarget && (
         <ConfirmDialog
           title="Remove this workshop?"
-          description="It will disappear from the public Workshops page. This can’t be undone."
+          description={
+            deleteTarget.registration.count > 0
+              ? `It will disappear from the public Workshops page, and its ${deleteTarget.registration.count} registration${deleteTarget.registration.count === 1 ? "" : "s"} will be deleted. This can’t be undone.`
+              : "It will disappear from the public Workshops page. This can’t be undone."
+          }
           confirmLabel="Remove workshop"
           busyLabel="Removing…"
           busy={deleteBusy}
@@ -154,6 +236,16 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
             </div>
           </div>
         </ConfirmDialog>
+      )}
+
+      {registrationsTarget && (
+        <WorkshopRegistrationsDialog
+          key={registrationsTarget.id}
+          // Read from the latest server list so counts stay current after a save.
+          workshop={workshops.find((w) => w.id === registrationsTarget.id) ?? registrationsTarget}
+          onClose={() => setRegistrationsTarget(null)}
+          onSaved={(message) => setToast(message)}
+        />
       )}
 
       {toast && <Toast message={toast} onDismiss={dismissToast} />}

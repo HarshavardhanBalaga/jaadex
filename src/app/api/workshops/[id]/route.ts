@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { WorkshopModel } from "@/models/Workshop";
 import { DUPLICATE_TITLE_MESSAGE, isDuplicateKeyError, isWorkshopTitleTaken } from "@/lib/workshops/queries";
 import { workshopUpdateSchema } from "@/lib/workshops/validation";
+import { deleteWorkshopRegistrations } from "@/lib/workshops/registration-service";
 import { validateCsrf } from "@/lib/admin/csrf";
 import { requireAdminFromToken } from "@/lib/admin/auth";
 import { readAuthCookies } from "@/lib/admin/cookies";
@@ -82,6 +83,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     await connectToDatabase();
     const deleted = await WorkshopModel.findByIdAndDelete(id).lean();
     if (!deleted) return fail("not_found", "Workshop not found.", 404);
+    await deleteWorkshopRegistrations(id);
     return NextResponse.json({ success: true, message: "Workshop removed." }, { headers: NO_STORE });
   } catch (err) {
     console.error("[workshops] delete unavailable:", err instanceof Error ? err.message : err);

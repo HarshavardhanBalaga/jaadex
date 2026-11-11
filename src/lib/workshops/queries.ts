@@ -3,8 +3,9 @@ import { workshopInterest } from "@/lib/contact/validation";
 import { connectToDatabase } from "@/lib/mongodb";
 import { isWorkshopUpcoming } from "@/lib/workshops/format";
 import { WORKSHOP_TITLE_COLLATION, WorkshopModel } from "@/models/Workshop";
+import { WorkshopRegistrationModel } from "@/models/WorkshopRegistration";
 
-const LIST_FIELDS = { title: 1, description: 1, date: 1, location: 1, image: 1 };
+const LIST_FIELDS = { title: 1, description: 1, date: 1, location: 1, image: 1, registration: 1 };
 
 export const DUPLICATE_TITLE_MESSAGE = "A workshop with this title already exists. Please use a different title.";
 
@@ -48,12 +49,29 @@ export async function listWorkshops(limit = Infinity) {
           .limit(toMongoLimit(remaining))
           .lean()
       : [];
-  return [...undated, ...dated].map((d) => ({
+  const workshops = [...undated, ...dated];
+  // Seats taken = real registration rows, so counts stay right even if a row is removed outside the app.
+  // (Workshop.registrationCount is only the atomic gate for reserving a seat.)
+  const counts = new Map(
+    (
+      await WorkshopRegistrationModel.aggregate<{ _id: unknown; n: number }>([
+        { $match: { workshopId: { $in: workshops.map((d) => d._id) } } },
+        { $group: { _id: "$workshopId", n: { $sum: 1 } } },
+      ])
+    ).map((c) => [String(c._id), c.n]),
+  );
+  return workshops.map((d) => ({
     id: String(d._id),
     title: d.title,
     description: d.description,
     date: d.date ? new Date(d.date).toISOString() : null,
     location: d.location ?? "",
     image: d.image,
+    // Workshops saved before registration existed read as "closed, unlimited, none taken".
+    registration: {
+      enabled: d.registration?.enabled ?? false,
+      capacity: d.registration?.capacity ?? null,
+      count: counts.get(String(d._id)) ?? 0,
+    },
   }));
 }

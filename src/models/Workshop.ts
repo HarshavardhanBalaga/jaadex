@@ -11,6 +11,10 @@ export interface WorkshopDoc extends Document {
   location: string;
   /** Image stored as a data URL (uploaded file, capped at ~4 MB base64). */
   image: string;
+  /** Admin-controlled sign-ups. capacity null = unlimited seats. */
+  registration: { enabled: boolean; capacity: number | null };
+  /** Confirmed seats taken. Only changed with atomic $inc (see registration-service). */
+  registrationCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +26,11 @@ const WorkshopSchema = new Schema<WorkshopDoc>(
     date: { type: Date, default: null },
     location: { type: String, default: "", trim: true, maxlength: 200 },
     image: { type: String, required: true },
+    registration: {
+      enabled: { type: Boolean, default: false },
+      capacity: { type: Number, default: null, min: 1 },
+    },
+    registrationCount: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true, collection: "workshops" },
 );
