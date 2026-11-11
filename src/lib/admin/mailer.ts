@@ -89,6 +89,25 @@ export async function sendUserPasswordResetOtp(to: string, otp: string, expiresM
   await transport.sendMail({ from: c.mailFrom, to, subject, text });
 }
 
+/**
+ * Workshop emails (registration confirmations and admin updates), sent from MAIL_FROM.
+ * "skipped" when SMTP is not configured; throws on SMTP failure so the caller can record it.
+ */
+export async function sendWorkshopEmail(
+  to: string,
+  email: { subject: string; text: string },
+  attachments: { filename: string; content: Buffer; contentType: string }[] = [],
+): Promise<"sent" | "skipped"> {
+  const c = getAdminAuthConfig();
+  const transport = getTransport();
+  if (!transport) {
+    console.info("[workshops] SMTP not configured; workshop email skipped (dev only).");
+    return "skipped";
+  }
+  await transport.sendMail({ from: c.mailFrom, to, subject: email.subject, text: email.text, attachments });
+  return "sent";
+}
+
 /** New-enquiry alert to the team. Reply-To is the submitter so staff can answer directly. */
 export async function sendEnquiryNotification(enquiry: EnquiryForEmail): Promise<void> {
   const c = getAdminAuthConfig();

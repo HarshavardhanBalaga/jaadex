@@ -5,7 +5,11 @@ export type RegistrationCsvRow = {
   phone: string;
   email: string;
   createdAt: Date;
+  /** null = registered before email tracking existed. */
+  emailStatus: "pending" | "sent" | "failed" | "skipped" | null;
 };
+
+const EMAIL_STATUS_LABEL = { pending: "pending", sent: "sent", failed: "failed", skipped: "not sent" } as const;
 
 /** Spreadsheet apps run a cell starting with these as a formula: prefix "'" so it stays text. */
 const FORMULA_START = /^[=+\-@\t\r]/;
@@ -19,8 +23,10 @@ function cell(value: string): string {
 
 /** BOM so Excel opens UTF-8 names correctly; CRLF line endings per RFC 4180. */
 export function buildRegistrationsCsv(rows: readonly RegistrationCsvRow[]): string {
-  const header = ["Name", "Phone", "Email", "Registered at (UTC)"].map(cell).join(",");
-  const lines = rows.map((r) => [r.name, r.phone, r.email, r.createdAt.toISOString()].map(cell).join(","));
+  const header = ["Name", "Phone", "Email", "Registered at (UTC)", "Confirmation email"].map(cell).join(",");
+  const lines = rows.map((r) =>
+    [r.name, r.phone, r.email, r.createdAt.toISOString(), r.emailStatus ? EMAIL_STATUS_LABEL[r.emailStatus] : "not sent"].map(cell).join(","),
+  );
   return `﻿${[header, ...lines].join("\r\n")}\r\n`;
 }
 
