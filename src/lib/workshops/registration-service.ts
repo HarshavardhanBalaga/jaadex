@@ -11,8 +11,10 @@ import type { RegistrationInput, RegistrationSettings } from "@/lib/workshops/re
 import type { CurrentUser } from "@/lib/user/session";
 import { WorkshopModel } from "@/models/Workshop";
 import { WorkshopRegistrationModel, type ConfirmationEmailStatus } from "@/models/WorkshopRegistration";
+import { WorkshopEmailModel } from "@/models/WorkshopEmail";
+import { WorkshopEmailAttachmentModel } from "@/models/WorkshopEmailAttachment";
 import { getAdminAuthConfig } from "@/lib/admin/auth-config";
-import { sendWorkshopRegistrationConfirmation } from "@/lib/admin/mailer";
+import { sendWorkshopEmail } from "@/lib/admin/mailer";
 import { buildRegistrationConfirmationEmail } from "@/lib/workshops/registration-email";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -157,7 +159,7 @@ export async function sendRegistrationConfirmation(registrationId: string): Prom
   const now = new Date();
   let set: Record<string, unknown>;
   try {
-    const result = await sendWorkshopRegistrationConfirmation(reg.email, email);
+    const result = await sendWorkshopEmail(reg.email, email);
     set = result === "sent"
       ? { "confirmationEmail.status": "sent", "confirmationEmail.sentAt": now, "confirmationEmail.lastError": null }
       : { "confirmationEmail.status": "skipped", "confirmationEmail.lastError": "Email is not configured on the server (SMTP)." };
@@ -286,8 +288,10 @@ export async function workshopTitle(workshopId: string): Promise<string | null> 
   return w?.title ?? null;
 }
 
-/** Removing a workshop removes its registrations too, so none are left orphaned. */
+/** Removing a workshop removes its registrations and the emails sent to them, so none are left orphaned. */
 export async function deleteWorkshopRegistrations(workshopId: string): Promise<void> {
   await connectToDatabase();
   await WorkshopRegistrationModel.deleteMany({ workshopId });
+  await WorkshopEmailModel.deleteMany({ workshopId });
+  await WorkshopEmailAttachmentModel.deleteMany({ workshopId });
 }

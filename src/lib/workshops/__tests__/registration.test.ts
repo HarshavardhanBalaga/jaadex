@@ -9,7 +9,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { registrationSchema, registrationSettingsSchema } from "../registration-validation.ts";
 import { buildRegistrationsCsv, registrationsCsvFilename } from "../registration-csv.ts";
-import { buildRegistrationConfirmationEmail } from "../registration-email.ts";
+import { buildRegistrationConfirmationEmail, buildWorkshopUpdateEmail } from "../registration-email.ts";
+import { workshopEmailSchema } from "../workshop-email-validation.ts";
+import { MAX_ATTACHMENT_BYTES, checkAttachment, precheckAttachment, safeAttachmentName } from "../attachment-rules.ts";
 
 const root = process.cwd();
 const src = (p: string): string => readFileSync(join(root, p), "utf8");
@@ -101,6 +103,102 @@ describe("workshop registration confirmation email", () => {
     const { subject, text } = buildRegistrationConfirmationEmail({ ...base, name: "Eve\r\nBcc: x@evil.com", workshopTitle: "AI\r\nBcc: y@evil.com" });
     assert.doesNotMatch(subject, /[\r\n]/);
     assert.match(text, /^Hi Eve Bcc: x@evil\.com,\n/);
+  });
+});
+
+describe("admin custom emails to registrants", () => {
+  const ok = { subject: "Venue details", message: "Please arrive by 9:30 AM at Hall B.", audience: "all" };
+  const id = "6af408bb8ea6e5380f5456a4";
+
+  it("validates the composer input", () => {
+    assert.equal(workshopEmailSchema.safeParse(ok).success, true);
+    assert.equal(workshopEmailSchema.safeParse({ ...ok, audience: "selected", registrationIds: [id] }).success, true);
+    assert.equal(workshopEmailSchema.safeParse({ ...ok, audience: "selected", registrationIds: [] }).success, false);
+    assert.equal(workshopEmailSchema.safeParse({ ...ok, audience: "selected", registrationIds: ["not-an-id"] }).success, false);
+    assert.equal(workshopEmailSchema.safeParse({ ...ok, subject: "  " }).success, false);
+    assert.equal(workshopEmailSchema.safeParse({ ...ok, message: "x".repeat(5001) }).success, false);
+    assert.equal(workshopEmailSchema.safeParse({ ...ok, audience: "everyone" }).success, false);
+    assert.equal(workshopEmailSchema.safeParse({ ...ok, bcc: "x@evil.com" }).success, false);
+  });
+
+  it("greets by name, keeps the message as written, and adds the workshop footer", () => {
+    const { subject, text } = buildWorkshopUpdateEmail({
+      name: "Priya",
+      workshopTitle: "AI Filmmaking",
+      date: "2026-12-05T00:00:00.000Z",
+      location: "RTIH, Mangalagiri",
+      workshopsUrl: "https://jaadex.example/workshops",
+      subject: "Venue\r\nBcc: x@evil.com",
+      message: "Line one.\n\nLine two.",
+    });
+    assert.doesNotMatch(subject, /[\r\n]/);
+    assert.match(text, /^Hi Priya,\n\nLine one\.\n\nLine two\.\n\n/);
+    assert.match(text, /Workshop: AI Filmmaking\nWhen & where: 5 December 2026 · RTIH, Mangalagiri/);
+  });
+
+  it("only admins send, delivery is tracked per recipient, and delete cascades", () => {
+    const route = src("src/app/api/workshops/[id]/emails/route.ts");
+    const retry = src("src/app/api/workshops/[id]/emails/[emailId]/retry/route.ts");
+    const service = src("src/lib/workshops/workshop-email-service.ts");
+    const post = route.slice(route.indexOf("export async function POST"), route.indexOf("export async function GET"));
+    assert.ok(post.indexOf("validateCsrf(request)") < post.indexOf("requireAdminFromToken(access)"));
+    assert.match(post, /workshopEmailSchema\.safeParse/);
+    assert.match(post, /after\(\(\) =>\s*deliverWorkshopEmail\(emailId\)/);
+    assert.match(route.slice(route.indexOf("export async function GET")), /requireAdminFromToken\(access\)/);
+    assert.ok(retry.indexOf("validateCsrf(request)") < retry.indexOf("requireAdminFromToken(access)"));
+    assert.match(service, /^import "server-only";/m);
+    assert.match(service, /"recipients\.\$\.status": "sending"/);
+    assert.match(service, /arrayFilters/);
+    assert.match(service, /"recipients\.\$\[r\]\.attempts": 1/);
+    assert.match(service, /"recipients\.\$\[r\]\.lastError"/);
+    assert.match(service, /_id: \{ \$in: input\.registrationIds/);
+    assert.match(src("src/lib/workshops/registration-service.ts"), /WorkshopEmailModel\.deleteMany\(\{ workshopId \}\)/);
+    assert.match(src("src/components/admin/WorkshopEmailComposer.tsx"), /workshopEmailSchema\.safeParse\(/);
+  });
+});
+
+describe("email attachments", () => {
+  const bytes = (...head: number[]) => new Uint8Array([...head, 1, 2, 3, 4]);
+
+  it("accepts real PDFs, images and Office files", () => {
+    assert.deepEqual(checkAttachment("schedule.pdf", bytes(0x25, 0x50, 0x44, 0x46)), { ok: true, contentType: "application/pdf" });
+    assert.equal(checkAttachment("venue.JPG", bytes(0xff, 0xd8, 0xff)).ok, true);
+    assert.equal(checkAttachment("map.png", bytes(0x89, 0x50, 0x4e, 0x47)).ok, true);
+    assert.equal(checkAttachment("agenda.docx", bytes(0x50, 0x4b, 0x03, 0x04)).ok, true);
+    assert.equal(checkAttachment("old.doc", bytes(0xd0, 0xcf, 0x11, 0xe0)).ok, true);
+  });
+
+  it("rejects disallowed types, disguised files, empty and oversized files", () => {
+    assert.equal(checkAttachment("setup.exe", bytes(0x4d, 0x5a)).ok, false);
+    assert.equal(checkAttachment("page.html", bytes(0x3c, 0x68)).ok, false);
+    // An executable renamed to .pdf
+    assert.equal(checkAttachment("invoice.pdf", bytes(0x4d, 0x5a, 0x90, 0x00)).ok, false);
+    assert.equal(checkAttachment("empty.pdf", new Uint8Array()).ok, false);
+    assert.notEqual(precheckAttachment("big.pdf", MAX_ATTACHMENT_BYTES + 1), null);
+    assert.equal(precheckAttachment("ok.pdf", MAX_ATTACHMENT_BYTES), null);
+  });
+
+  it("cleans file names for mail headers", () => {
+    assert.equal(safeAttachmentName("C:\\fakepath\\Venue \"map\".pdf"), "Venue map.pdf");
+    assert.equal(safeAttachmentName("../../etc/passwd.pdf"), "passwd.pdf");
+    assert.equal(safeAttachmentName("a\r\nBcc: x.pdf"), "aBcc x.pdf");
+    assert.equal(safeAttachmentName(".pdf"), "attachment.pdf");
+  });
+
+  it("composer limits attachment count; upload is admin-only and checks content", () => {
+    const id = "6af408bb8ea6e5380f5456a4";
+    const base = { subject: "Venue details", message: "Please arrive by 9:30 AM at Hall B.", audience: "all" };
+    assert.equal(workshopEmailSchema.safeParse({ ...base, attachmentIds: [id] }).success, true);
+    assert.equal(workshopEmailSchema.safeParse({ ...base, attachmentIds: Array(6).fill(id) }).success, false);
+    const upload = src("src/app/api/workshops/[id]/emails/attachments/route.ts");
+    assert.ok(upload.indexOf("validateCsrf(request)") < upload.indexOf("requireAdminFromToken(access)"));
+    assert.match(upload, /content-length/);
+    assert.match(upload, /checkAttachment\(filename, bytes\)/);
+    const service = src("src/lib/workshops/workshop-email-service.ts");
+    assert.match(service, /workshopId, linked: false \},\s*\{ \$set: \{ linked: true, emailId \} \}/);
+    assert.match(service, /MAX_TOTAL_ATTACHMENT_BYTES/);
+    assert.match(src("src/models/WorkshopEmailAttachment.ts"), /expireAfterSeconds: 24 \* 60 \* 60, partialFilterExpression: \{ linked: false \}/);
+    assert.match(src("src/lib/workshops/registration-service.ts"), /WorkshopEmailAttachmentModel\.deleteMany\(\{ workshopId \}\)/);
   });
 });
 

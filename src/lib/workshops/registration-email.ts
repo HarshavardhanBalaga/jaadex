@@ -32,3 +32,16 @@ export function buildRegistrationConfirmationEmail(e: RegistrationEmailInput): {
     `${e.workshopsUrl}\n`;
   return { subject, text };
 }
+
+/** Admin-written update to a registrant: greeting, the admin's message as written, workshop footer. */
+export function buildWorkshopUpdateEmail(e: RegistrationEmailInput & { subject: string; message: string }): { subject: string; text: string } {
+  const title = oneLine(e.workshopTitle, 140);
+  const text =
+    `Hi ${oneLine(e.name, 80)},\n\n` +
+    `${e.message.trim()}\n\n` +
+    `Workshop: ${title}\n` +
+    `When & where: ${workshopWhenWhere(e.date, e.location)}\n\n` +
+    `— Team JaaDeX\n` +
+    `${e.workshopsUrl}\n`;
+  return { subject: oneLine(e.subject, 150), text };
+}

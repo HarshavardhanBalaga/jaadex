@@ -1,14 +1,39 @@
 "use client";
 
-import { useEffect, useId, useState, useTransition } from "react";
+import { useCallback, useEffect, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { getCsrfToken, authFetch } from "@/lib/admin-client/auth-fetch";
 import { Icon } from "@/components/Icon";
 import { Modal } from "@/components/admin/Modal";
+import { WorkshopEmailComposer } from "@/components/admin/WorkshopEmailComposer";
 import type { WorkshopListItem } from "@/components/admin/WorkshopList";
 import { fieldErrorsOf, MAX_CAPACITY, registrationSettingsSchema } from "@/lib/workshops/registration-validation";
+import { formatBytes } from "@/lib/workshops/attachment-rules";
 
 type EmailStatus = "pending" | "sent" | "failed" | "skipped";
+
+/** An admin-written email and its per-recipient delivery (GET /api/workshops/[id]/emails). */
+type SentEmail = {
+  id: string;
+  subject: string;
+  message: string;
+  audience: "all" | "selected";
+  sentBy: string;
+  createdAt: string;
+  counts: { sent: number; failed: number; sending: number };
+  attachments: { filename: string; size: number }[];
+  recipients: { registrationId: string; name: string; email: string; status: EmailStatus | "sending"; attempts: number; sentAt: string | null; lastError: string | null }[];
+};
+
+/** How often the history refreshes while an email is still going out. */
+const POLL_MS = 3000;
+
+async function fetchSentEmails(workshopId: string): Promise<SentEmail[]> {
+  const res = await authFetch(`/api/workshops/${workshopId}/emails`);
+  const json = (await res.json().catch(() => null)) as { emails?: SentEmail[]; error?: { message?: string } } | null;
+  if (!res.ok || !json?.emails) throw new Error(json?.error?.message ?? "Could not load sent emails.");
+  return json.emails;
+}
 
 type Registration = {
   id: string;
@@ -27,25 +52,36 @@ function canResend(status: EmailStatus | null): boolean {
   return status === null || status === "failed" || status === "skipped";
 }
 
-function EmailStatusBadge({ r }: { r: Registration }) {
+/** Delivery status of one email, used for confirmations and admin-written emails alike. */
+function EmailStatusBadge({
+  status,
+  sentAt,
+  error,
+  attempts,
+}: {
+  status: EmailStatus | "sending" | null;
+  sentAt: string | null;
+  error: string | null;
+  attempts: number;
+}) {
   const base = "inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold whitespace-nowrap";
-  if (r.emailStatus === "sent") {
+  if (status === "sent") {
     return (
-      <span className={`${base} bg-[#e8f6e8] text-green`} title={r.emailSentAt ? `Sent ${fmt(r.emailSentAt)}` : undefined}>
+      <span className={`${base} bg-[#e8f6e8] text-green`} title={sentAt ? `Sent ${fmt(sentAt)}` : undefined}>
         Sent
       </span>
     );
   }
-  if (r.emailStatus === "failed") {
+  if (status === "failed") {
     return (
-      <span className={`${base} bg-[#fdece4] text-[#c1440e]`} title={r.emailError ? `${r.emailError} (${r.emailAttempts} attempt${r.emailAttempts === 1 ? "" : "s"})` : undefined}>
+      <span className={`${base} bg-[#fdece4] text-[#c1440e]`} title={error ? `${error} (${attempts} attempt${attempts === 1 ? "" : "s"})` : undefined}>
         Failed
       </span>
     );
   }
-  if (r.emailStatus === "pending") return <span className={`${base} bg-[#e9efff] text-royal`}>Sending…</span>;
+  if (status === "pending" || status === "sending") return <span className={`${base} bg-[#e9efff] text-royal`}>Sending…</span>;
   return (
-    <span className={`${base} bg-[#eef1f8] text-muted`} title={r.emailError ?? "Registered before confirmation emails were added."}>
+    <span className={`${base} bg-[#eef1f8] text-muted`} title={error ?? "Registered before confirmation emails were added."}>
       Not sent
     </span>
   );
@@ -81,8 +117,79 @@ export function WorkshopRegistrationsDialog({
   const [exportError, setExportError] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [composing, setComposing] = useState(false);
+  const [emails, setEmails] = useState<SentEmail[] | null>(null);
+  const [emailsError, setEmailsError] = useState<string | null>(null);
+  const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [isRefreshing, startRefresh] = useTransition();
   const busy = saving || isRefreshing;
+
+  const loadEmails = useCallback(
+    () =>
+      fetchSentEmails(workshop.id).then(
+        (list) => {
+          setEmails(list);
+          setEmailsError(null);
+        },
+        (err: unknown) => setEmailsError(err instanceof Error ? err.message : "Could not load sent emails."),
+      ),
+    [workshop.id],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSentEmails(workshop.id).then(
+      (list) => {
+        if (!cancelled) setEmails(list);
+      },
+      (err: unknown) => {
+        if (!cancelled) setEmailsError(err instanceof Error ? err.message : "Could not load sent emails.");
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [workshop.id]);
+
+  // Refresh while any email is still going out, so the counts update on their own.
+  const stillSending = emails?.some((e) => e.counts.sending > 0) ?? false;
+  useEffect(() => {
+    if (!stillSending) return;
+    const timer = window.setTimeout(() => void loadEmails(), POLL_MS);
+    return () => window.clearTimeout(timer);
+  }, [stillSending, emails, loadEmails]);
+
+  function toggleSelected(registrationId: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(registrationId)) next.delete(registrationId);
+      else next.add(registrationId);
+      return next;
+    });
+  }
+
+  async function retryEmail(email: SentEmail) {
+    if (retryingId) return;
+    setRetryingId(email.id);
+    setEmailsError(null);
+    try {
+      const csrf = await getCsrfToken();
+      const res = await authFetch(`/api/workshops/${workshop.id}/emails/${email.id}/retry`, {
+        method: "POST",
+        headers: { "x-csrf-token": csrf },
+      });
+      const json = (await res.json().catch(() => null)) as { queued?: number; error?: { message?: string } } | null;
+      if (!res.ok || typeof json?.queued !== "number") throw new Error(json?.error?.message ?? "Could not retry. Try again.");
+      onSaved(`Retrying ${json.queued} recipient${json.queued === 1 ? "" : "s"} of “${email.subject}”.`);
+      await loadEmails();
+    } catch (err) {
+      setEmailsError(err instanceof Error ? err.message : "Could not retry. Try again.");
+    } finally {
+      setRetryingId(null);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -258,10 +365,22 @@ export function WorkshopRegistrationsDialog({
               {count} registered
               {workshop.registration.capacity !== null && ` of ${workshop.registration.capacity} seats`}
             </h3>
-            <button type="button" onClick={() => void exportCsv()} disabled={exporting || count === 0} className={secondaryButton}>
-              <Icon name={exporting ? "loader" : "download"} size={16} className={exporting ? "inline-block animate-spin" : ""} />
-              {exporting ? "Exporting…" : "Export CSV"}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setComposing(true)}
+                disabled={!rows || rows.length === 0}
+                aria-haspopup="dialog"
+                className={secondaryButton}
+              >
+                <Icon name="mail" size={16} />
+                {selected.size > 0 ? `Email selected (${selected.size})` : "Email all registrants"}
+              </button>
+              <button type="button" onClick={() => void exportCsv()} disabled={exporting || count === 0} className={secondaryButton}>
+                <Icon name={exporting ? "loader" : "download"} size={16} className={exporting ? "inline-block animate-spin" : ""} />
+                {exporting ? "Exporting…" : "Export CSV"}
+              </button>
+            </div>
           </div>
           {exportError && (
             <p role="alert" className="border-b border-line bg-[#fdece4] px-4 py-3 text-[13px] font-medium text-[#c1440e]">
@@ -285,9 +404,21 @@ export function WorkshopRegistrationsDialog({
             <p className="px-4 py-6 text-center text-[13px] text-muted">No registrations yet.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] text-left text-[13px]">
+              <table className="w-full min-w-[720px] text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-line text-[11px] font-semibold tracking-[0.5px] text-muted uppercase">
+                    <th className="w-10 py-2.5 pl-4">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all registrants"
+                        checked={selected.size > 0 && selected.size === rows.length}
+                        ref={(el) => {
+                          if (el) el.indeterminate = selected.size > 0 && selected.size < rows.length;
+                        }}
+                        onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())}
+                        className="size-4 cursor-pointer accent-royal"
+                      />
+                    </th>
                     <th className="px-4 py-2.5">Name</th>
                     <th className="px-4 py-2.5">Phone</th>
                     <th className="px-4 py-2.5">Email</th>
@@ -298,6 +429,15 @@ export function WorkshopRegistrationsDialog({
                 <tbody className="divide-y divide-line">
                   {rows.map((r) => (
                     <tr key={r.id}>
+                      <td className="py-2.5 pl-4">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${r.name}`}
+                          checked={selected.has(r.id)}
+                          onChange={() => toggleSelected(r.id)}
+                          className="size-4 cursor-pointer accent-royal"
+                        />
+                      </td>
                       <td className="px-4 py-2.5 text-navy break-all">{r.name}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap text-muted">
                         <a href={`tel:${r.phone}`} className="hover:text-royal">{r.phone}</a>
@@ -308,7 +448,7 @@ export function WorkshopRegistrationsDialog({
                       <td className="px-4 py-2.5 whitespace-nowrap text-muted">{fmt(r.createdAt)}</td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-2">
-                          <EmailStatusBadge r={r} />
+                          <EmailStatusBadge status={r.emailStatus} sentAt={r.emailSentAt} error={r.emailError} attempts={r.emailAttempts} />
                           {canResend(r.emailStatus) && (
                             <button
                               type="button"
@@ -330,7 +470,102 @@ export function WorkshopRegistrationsDialog({
             </div>
           )}
         </section>
+
+        <section className="overflow-hidden rounded-xl border border-line" aria-labelledby={`${id}-emails`}>
+          <h3 id={`${id}-emails`} className="border-b border-line bg-[#f5f8ff] px-4 py-3 text-[13px] font-semibold text-navy">
+            Emails sent
+          </h3>
+          {emailsError && (
+            <p role="alert" className="border-b border-line bg-[#fdece4] px-4 py-3 text-[13px] font-medium text-[#c1440e]">
+              {emailsError}
+            </p>
+          )}
+          {emails === null ? (
+            !emailsError && (
+              <p className="flex items-center justify-center gap-2 px-4 py-6 text-[13px] text-muted" role="status">
+                <Icon name="loader" size={16} className="inline-block animate-spin" /> Loading…
+              </p>
+            )
+          ) : emails.length === 0 ? (
+            <p className="px-4 py-6 text-center text-[13px] text-muted">No emails sent to registrants yet.</p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {emails.map((e) => {
+                const expanded = expandedEmailId === e.id;
+                return (
+                  <li key={e.id} className="px-4 py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedEmailId(expanded ? null : e.id)}
+                        aria-expanded={expanded}
+                        className="min-w-0 flex-1 cursor-pointer text-left"
+                      >
+                        <p className="truncate text-[14px] font-semibold text-navy">{e.subject}</p>
+                        <p className="mt-0.5 text-[12px] text-muted">
+                          {fmt(e.createdAt)} · by {e.sentBy} · {e.audience === "all" ? "all registrants" : "selected registrants"}
+                          {e.attachments.length > 0 && ` · ${e.attachments.length} attachment${e.attachments.length === 1 ? "" : "s"}`}
+                        </p>
+                        <p className="mt-1 text-[12px] font-medium">
+                          <span className="text-green">{e.counts.sent} sent</span>
+                          {e.counts.failed > 0 && <span className="text-[#c1440e]"> · {e.counts.failed} not delivered</span>}
+                          {e.counts.sending > 0 && <span className="text-royal"> · {e.counts.sending} sending…</span>}
+                        </p>
+                      </button>
+                      {e.counts.failed > 0 && (
+                        <button type="button" onClick={() => void retryEmail(e)} disabled={retryingId !== null} className={secondaryButton}>
+                          {retryingId === e.id && <Icon name="loader" size={16} className="inline-block animate-spin" />}
+                          {retryingId === e.id ? "Retrying…" : "Retry failed"}
+                        </button>
+                      )}
+                    </div>
+                    {expanded && (
+                      <div className="mt-3 grid gap-3">
+                        <p className="rounded-lg bg-[#f5f8ff] px-3 py-2 text-[13px] whitespace-pre-wrap text-navy">{e.message}</p>
+                        {e.attachments.length > 0 && (
+                          <ul className="flex flex-wrap gap-2" aria-label="Attachments">
+                            {e.attachments.map((a, i) => (
+                              <li key={`${a.filename}-${i}`} className="rounded-lg border border-line px-2.5 py-1 text-[12px] text-navy">
+                                {a.filename} <span className="text-muted">· {formatBytes(a.size)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <ul className="divide-y divide-line rounded-lg border border-line">
+                          {e.recipients.map((r) => (
+                            <li key={r.registrationId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-[13px]">
+                              <span className="min-w-0 break-all text-navy">
+                                {r.name} <span className="text-muted">· {r.email}</span>
+                              </span>
+                              <EmailStatusBadge status={r.status} sentAt={r.sentAt} error={r.lastError} attempts={r.attempts} />
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       </div>
+
+      {composing && rows && (
+        <WorkshopEmailComposer
+          workshopId={workshop.id}
+          workshopTitle={workshop.title}
+          selectedIds={[...selected]}
+          totalRegistrants={rows.length}
+          onClose={() => setComposing(false)}
+          onSent={(recipientCount) => {
+            setComposing(false);
+            setSelected(new Set());
+            onSaved(`Email is being sent to ${recipientCount} registrant${recipientCount === 1 ? "" : "s"}.`);
+            void loadEmails();
+          }}
+        />
+      )}
     </Modal>
   );
 }
