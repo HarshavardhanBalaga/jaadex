@@ -23,6 +23,11 @@
   --shadow-soft: 0 16px 42px rgb(20 50 150 / 0.14);
   --shadow-pop-orange: 0 5px 0 var(--color-orange-dark);
   --shadow-pop-royal: 0 5px 0 var(--color-royal-dark);
+  /* Admin cards: a tight contact shadow plus a long, faint ambient one. */
+  --shadow-card: 0 1px 2px rgb(7 7 79 / 0.04), 0 8px 24px -12px rgb(7 7 79 / 0.12);
+  --shadow-card-hover: 0 2px 4px rgb(7 7 79 / 0.05), 0 18px 36px -16px rgb(7 7 79 / 0.2);
+  /* Neutral cool grey for admin backgrounds and table headers (less blue than the brand tint). */
+  --color-canvas: #f4f6fa;
 
   --background-image-hero-wash: linear-gradient(135deg, #eaf1ff, #ffffff 55%, #e1ebff);
 }

@@ -87,10 +87,14 @@ function EmailStatusBadge({
   );
 }
 
-const field =
-  "w-full rounded-xl border border-[#8d9bc4] bg-white px-4 py-2.5 text-[14px] text-navy outline-none transition-[border-color,box-shadow] placeholder:text-muted/70 hover:border-royal focus:border-royal focus:ring-4 focus:ring-royal/15 disabled:cursor-not-allowed disabled:bg-[#f5f8ff] disabled:opacity-70";
-const secondaryButton =
-  "inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-line bg-white px-4 text-[13px] font-semibold text-navy transition-colors hover:border-royal/40 hover:text-royal disabled:cursor-not-allowed disabled:opacity-60";
+/** Coloured action buttons for the registrations popup: tinted at rest, filled on hover. */
+const toneButton =
+  "inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl border px-4 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+const royalButton = `${toneButton} border-royal/30 bg-royal/10 text-royal hover:bg-royal hover:text-white`;
+const greenButton = `${toneButton} border-green/30 bg-green/10 text-green hover:bg-green hover:text-white`;
+const orangeButton = `${toneButton} border-orange/30 bg-orange/10 text-orange-dark hover:bg-orange-dark hover:text-white`;
+const solidButton = `${toneButton} border-royal bg-royal text-white hover:bg-royal-dark`;
+
 
 function fmt(iso: string): string {
   return new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
@@ -304,7 +308,7 @@ export function WorkshopRegistrationsDialog({
   const { count } = workshop.registration;
 
   return (
-    <Modal labelledBy={`${id}-heading`} busy={busy} dismissOnBackdrop className="max-w-[760px]" onClose={onClose}>
+    <Modal labelledBy={`${id}-heading`} busy={busy} dismissOnBackdrop className="max-w-[874px]" onClose={onClose}>
       <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-line bg-white px-6 py-4">
         <div className="min-w-0">
           <h2 id={`${id}-heading`} className="font-display text-[18px] font-bold text-navy">
@@ -325,33 +329,37 @@ export function WorkshopRegistrationsDialog({
 
       <div className="grid gap-6 p-6">
         <form onSubmit={saveCapacity} noValidate className="grid gap-2">
-          <label htmlFor={`${id}-capacity`} className="text-[13px] font-semibold text-navy">
-            Seat limit
-          </label>
-          <div className="flex flex-wrap items-start gap-3">
-            <input
-              id={`${id}-capacity`}
-              type="number"
-              inputMode="numeric"
-              min={Math.max(1, count)}
-              max={MAX_CAPACITY}
-              step={1}
-              value={capacity}
-              onChange={(e) => setCapacity(e.target.value)}
-              placeholder="Unlimited"
-              disabled={busy}
-              aria-invalid={Boolean(capacityError)}
-              aria-describedby={`${id}-capacity-hint`}
-              className={`${field} max-w-[180px]`}
-            />
-            <button type="submit" disabled={busy} className={secondaryButton}>
-              {busy && <Icon name="loader" size={16} className="inline-block animate-spin" />}
-              {busy ? "Saving…" : "Save"}
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border border-line bg-canvas/60 px-4 py-3">
+            <div className="min-w-0">
+              <label htmlFor={`${id}-capacity`} className="block text-[13px] font-semibold text-navy">
+                Seat limit
+              </label>
+              <p id={`${id}-capacity-hint`} className="text-[12px] text-muted">
+                Blank = unlimited. Closes automatically when full.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                id={`${id}-capacity`}
+                type="number"
+                inputMode="numeric"
+                min={Math.max(1, count)}
+                max={MAX_CAPACITY}
+                step={1}
+                value={capacity}
+                onChange={(e) => setCapacity(e.target.value)}
+                placeholder="Unlimited"
+                disabled={busy}
+                aria-invalid={Boolean(capacityError)}
+                aria-describedby={`${id}-capacity-hint`}
+                className="h-10 w-32 rounded-xl border border-[#8d9bc4] bg-white px-3 text-[14px] text-navy outline-none transition-[border-color,box-shadow] placeholder:text-muted/70 hover:border-royal focus:border-royal focus:ring-4 focus:ring-royal/15 disabled:cursor-not-allowed disabled:opacity-70"
+              />
+              <button type="submit" disabled={busy} className={solidButton}>
+                {busy && <Icon name="loader" size={16} className="inline-block animate-spin" />}
+                {busy ? "Saving…" : "Save"}
+              </button>
+            </div>
           </div>
-          <p id={`${id}-capacity-hint`} className="text-[12px] text-muted">
-            Leave blank for unlimited seats. Registration closes automatically when the limit is reached.
-          </p>
           {capacityError && (
             <p role="alert" className="rounded-xl bg-[#fdece4] px-4 py-3 text-[13px] font-medium text-[#c1440e]">
               {capacityError}
@@ -371,12 +379,12 @@ export function WorkshopRegistrationsDialog({
                 onClick={() => setComposing(true)}
                 disabled={!rows || rows.length === 0}
                 aria-haspopup="dialog"
-                className={secondaryButton}
+                className={royalButton}
               >
                 <Icon name="mail" size={16} />
                 {selected.size > 0 ? `Email selected (${selected.size})` : "Email all registrants"}
               </button>
-              <button type="button" onClick={() => void exportCsv()} disabled={exporting || count === 0} className={secondaryButton}>
+              <button type="button" onClick={() => void exportCsv()} disabled={exporting || count === 0} className={greenButton}>
                 <Icon name={exporting ? "loader" : "download"} size={16} className={exporting ? "inline-block animate-spin" : ""} />
                 {exporting ? "Exporting…" : "Export CSV"}
               </button>
@@ -513,7 +521,7 @@ export function WorkshopRegistrationsDialog({
                         </p>
                       </button>
                       {e.counts.failed > 0 && (
-                        <button type="button" onClick={() => void retryEmail(e)} disabled={retryingId !== null} className={secondaryButton}>
+                        <button type="button" onClick={() => void retryEmail(e)} disabled={retryingId !== null} className={orangeButton}>
                           {retryingId === e.id && <Icon name="loader" size={16} className="inline-block animate-spin" />}
                           {retryingId === e.id ? "Retrying…" : "Retry failed"}
                         </button>

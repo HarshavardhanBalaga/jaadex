@@ -29,8 +29,9 @@ function registrationSummary({ enabled, capacity, count }: WorkshopListItem["reg
   return capacity !== null && count >= capacity ? `Registration full · ${seats}` : `Registration open · ${seats}`;
 }
 
-const rowButton =
-  "inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12px] font-medium text-muted transition-colors";
+const rowButtonBase =
+  "inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold shadow-[0_1px_2px_rgb(7_7_79/0.05)] transition-colors";
+const rowButton = `${rowButtonBase} border-line bg-white text-muted`;
 
 /** Dashboard list of published workshops: add, remove, and edit for upcoming ones. Server data, client actions. */
 export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
@@ -99,7 +100,7 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-white px-6 py-3">
         <p className="text-[13px] text-muted">
           {workshops.length} workshop{workshops.length === 1 ? "" : "s"}
         </p>
@@ -107,7 +108,7 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
           type="button"
           onClick={() => setFormTarget("new")}
           aria-haspopup="dialog"
-          className="inline-flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-royal px-4 text-[13px] font-semibold text-white transition-colors hover:bg-royal-dark"
+          className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-royal px-4 text-[13px] font-semibold text-white shadow-[0_6px_16px_-6px_rgb(20_80_214/0.6)] transition-colors hover:bg-royal-dark"
         >
           <Icon name="plus" size={18} />
           Add new workshop
@@ -115,11 +116,11 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
       </div>
 
       {workshops.length === 0 ? (
-        <p className="px-5 py-8 text-center text-[13px] text-muted">No workshops published yet. Click “Add new workshop” to publish your first one.</p>
+        <p className="px-6 py-12 text-center text-[13px] text-muted">No workshops published yet. Click “Add new workshop” to publish your first one.</p>
       ) : (
         <div className="divide-y divide-line">
           {workshops.map((w) => (
-            <div key={w.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4 sm:flex-nowrap">
+            <div key={w.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 px-6 py-5 transition-colors hover:bg-canvas/60 sm:flex-nowrap">
               <div className="flex min-w-0 flex-1 basis-full items-center gap-4 sm:basis-0">
                 {/* Data-URL image: plain img (next/image does not accept data: URLs). */}
                 <img src={w.image} alt="" className="h-14 w-20 shrink-0 rounded-lg border border-line object-cover" />
@@ -177,7 +178,7 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
                     onClick={() => setFormTarget(w)}
                     aria-haspopup="dialog"
                     aria-label={`Edit ${w.title}`}
-                    className={`${rowButton} hover:border-royal/40 hover:text-royal`}
+                    className={`${rowButtonBase} border-royal/30 bg-royal/10 text-royal hover:bg-royal hover:text-white`}
                   >
                     <Icon name="pencil" size={14} />
                     Edit
@@ -191,7 +192,7 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
                   }}
                   aria-haspopup="dialog"
                   aria-label={`Remove ${w.title}`}
-                  className={`${rowButton} hover:border-[#c1440e]/40 hover:bg-[#fdece4] hover:text-[#c1440e]`}
+                  className={`${rowButtonBase} border-[#c1440e]/30 bg-[#fdece4] text-[#c1440e] hover:bg-[#c1440e] hover:text-white`}
                 >
                   <Icon name="trash" size={14} />
                   Remove
