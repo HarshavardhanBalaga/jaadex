@@ -19,12 +19,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
           <div className="rounded-[25px] border border-line bg-white p-[21px] shadow-[0_12px_30px_rgb(20_60_160/0.06)] md:p-[27px]">
             <h2 className="mb-[7px] font-display text-[22px] font-bold text-navy">Register</h2>
             <p className="mb-5 text-[13px] text-muted">All fields are required.</p>
-            {reason === "no_account" ? (
-              <p role="status" className="mb-5 rounded-xl bg-[#e3ecff] px-3 py-2.5 text-[13px] font-bold text-royal">
-                We couldn&apos;t find an account for that email. Create one below to continue.
-              </p>
-            ) : null}
-            <UserRegisterForm next={next} />
+            <UserRegisterForm next={next} noAccount={reason === "no_account"} />
           </div>
         </Container>
       </Section>
