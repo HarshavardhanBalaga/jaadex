@@ -8,29 +8,34 @@ export type AdminSection = {
   label: string;
   /** Optional: entries without an icon show their label as text. */
   icon?: ComponentProps<typeof Icon>["name"];
+  /** Optional sub-items shown as a dropdown. Each one's id is a hash like `${id}/…` and selects this section. */
+  children?: { id: string; label: string }[];
   content: ReactNode;
 };
 
 /**
  * Full-viewport admin app: a dark midnight sidebar and a scrolling content
  * column. The active section is kept in the URL hash (#workshops,
- * #enquiries…) so links, refresh and the back button all work. Every section
- * is rendered on the server; inactive ones are just hidden. The toggle
- * collapses the sidebar to icons only.
+ * #registrations/<id>…) so links, refresh and the back button all work. Every
+ * section is rendered on the server; inactive ones are just hidden. The toggle
+ * collapses the sidebar to icons only, which hides sub-items.
  */
 export function AdminDashboardShell({ header, sections, footer }: { header: ReactNode; sections: AdminSection[]; footer?: ReactNode }) {
-  const [active, setActive] = useState(sections[0].id);
+  const [hash, setHash] = useState("");
   const [open, setOpen] = useState(true);
+  /** Dropdown state per section; unset means "open while this section is active". */
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     function syncFromHash() {
-      const id = window.location.hash.slice(1);
-      if (sections.some((s) => s.id === id)) setActive(id);
+      setHash(window.location.hash.slice(1));
     }
     syncFromHash();
     window.addEventListener("hashchange", syncFromHash);
     return () => window.removeEventListener("hashchange", syncFromHash);
-  }, [sections]);
+  }, []);
+
+  const active = sections.find((s) => s.id === hash || hash.startsWith(`${s.id}/`))?.id ?? sections[0].id;
 
   return (
     // Fills the screen below the site header (promo bar 38px + header 68px / 76px on md+).
@@ -53,27 +58,63 @@ export function AdminDashboardShell({ header, sections, footer }: { header: Reac
           <Icon name="menu" size={20} />
           {open && <span className="text-[13px] font-semibold">Menu</span>}
         </button>
-        <nav aria-label="Admin sections" className="flex-1">
+        <nav aria-label="Admin sections" className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
           {open && <p className="mb-2 px-3 text-[11px] font-bold tracking-[1.4px] text-white uppercase">Manage</p>}
           <ul className="grid gap-1">
             {sections.map((s) => {
               const current = s.id === active;
               const showLabel = open || !s.icon;
+              const isOpen = expanded[s.id] ?? current;
+              const hasChildren = Boolean(s.children?.length);
               return (
                 <li key={s.id}>
-                  <a
-                    href={`#${s.id}`}
-                    aria-current={current ? "page" : undefined}
-                    title={showLabel ? undefined : s.label}
-                    className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-semibold transition-colors ${
-                      current
-                        ? "bg-white/12 text-white before:absolute before:inset-y-2 before:-left-3 before:w-[3px] before:rounded-r-full before:bg-orange"
-                        : "hover:bg-white/8"
-                    } ${open ? "" : "justify-center"}`}
-                  >
-                    {s.icon && <Icon name={s.icon} size={20} />}
-                    <span className={showLabel ? "truncate" : "sr-only"}>{s.label}</span>
-                  </a>
+                  <div className="flex min-w-0 items-center gap-1">
+                    <a
+                      href={`#${s.id}`}
+                      aria-current={current && !hasChildren ? "page" : undefined}
+                      title={showLabel ? undefined : s.label}
+                      className={`relative flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-semibold transition-colors ${
+                        current
+                          ? "bg-white/12 text-white before:absolute before:inset-y-2 before:-left-3 before:w-[3px] before:rounded-r-full before:bg-orange"
+                          : "hover:bg-white/8"
+                      } ${open ? "" : "justify-center"}`}
+                    >
+                      {s.icon && <Icon name={s.icon} size={20} />}
+                      <span className={showLabel ? "truncate" : "sr-only"}>{s.label}</span>
+                    </a>
+                    {open && hasChildren && (
+                      <button
+                        type="button"
+                        onClick={() => setExpanded((prev) => ({ ...prev, [s.id]: !isOpen }))}
+                        aria-expanded={isOpen}
+                        aria-label={`${isOpen ? "Hide" : "Show"} ${s.label} list`}
+                        className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors hover:bg-white/8"
+                      >
+                        <Icon name="chevronDown" size={18} className={`transition-transform duration-200 motion-reduce:transition-none ${isOpen ? "rotate-180" : ""}`} />
+                      </button>
+                    )}
+                  </div>
+                  {open && hasChildren && isOpen && (
+                    <ul className="mt-1 mb-1 ml-[22px] grid min-w-0 grid-cols-[minmax(0,1fr)] gap-0.5 border-l border-white/15 pl-2.5">
+                      {s.children?.map((c) => {
+                        const selected = hash === c.id;
+                        return (
+                          <li key={c.id} className="min-w-0">
+                            <a
+                              href={`#${c.id}`}
+                              aria-current={selected ? "page" : undefined}
+                              title={c.label}
+                              className={`block min-w-0 truncate rounded-lg px-2.5 py-2 text-[13px] transition-colors ${
+                                selected ? "bg-white/12 font-semibold text-white" : "text-white/80 hover:bg-white/8 hover:text-white"
+                              }`}
+                            >
+                              {c.label}
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </li>
               );
             })}

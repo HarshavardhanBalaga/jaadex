@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState, useTransition } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { getCsrfToken, authFetch } from "@/lib/admin-client/auth-fetch";
 import { Icon } from "@/components/Icon";
@@ -69,6 +69,29 @@ function canResend(status: EmailStatus | null): boolean {
   return status === null || status === "failed" || status === "skipped";
 }
 
+function fmt(iso: string): string {
+  return new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+}
+
+/** Two-letter initials for the name avatar, e.g. "Asha Rao" → "AR". */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const letters = (parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "");
+  return letters.toUpperCase() || "?";
+}
+
+const primaryButton =
+  "inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg bg-royal px-4 text-[14px] font-semibold text-white transition-colors hover:bg-royal-dark disabled:cursor-not-allowed disabled:opacity-50";
+const secondaryButton =
+  "inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#8d9bc4] bg-white px-4 text-[14px] font-semibold text-navy transition-colors hover:border-royal hover:text-royal disabled:cursor-not-allowed disabled:opacity-50";
+const smallButton =
+  "inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[#e0a27f] bg-white px-3 text-[13px] font-semibold text-[#a33d0c] transition-colors hover:bg-[#fdf1ea] disabled:cursor-not-allowed disabled:opacity-50";
+const pageButton =
+  "inline-flex h-8 cursor-pointer items-center px-3 text-[13px] font-semibold text-[#2b3a63] transition-colors hover:bg-[#f5f8ff] hover:text-royal disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#2b3a63]";
+/** Text input and select used by the search, seat limit and page size. Size is set by each use. */
+const field =
+  "rounded-lg border border-[#8d9bc4] bg-white px-3 text-[14px] text-navy outline-none transition-[border-color,box-shadow] placeholder:text-[#7a88ad] hover:border-royal focus:border-royal focus:ring-4 focus:ring-royal/15 disabled:cursor-not-allowed disabled:opacity-70";
+
 /** Column header that sorts the list on the server; clicking again flips the order. */
 function SortableHeader({
   label,
@@ -83,11 +106,11 @@ function SortableHeader({
 }) {
   const active = query.sort === field;
   return (
-    <th className="px-4 py-2.5" aria-sort={active ? (query.order === "asc" ? "ascending" : "descending") : "none"}>
+    <th className="px-4 py-3" aria-sort={active ? (query.order === "asc" ? "ascending" : "descending") : "none"}>
       <button
         type="button"
         onClick={() => onSort(field)}
-        className={`inline-flex cursor-pointer items-center gap-1 tracking-[0.5px] uppercase hover:text-royal ${active ? "text-navy" : ""}`}
+        className={`inline-flex cursor-pointer items-center gap-1.5 hover:text-royal ${active ? "text-royal" : ""}`}
       >
         {label}
         <span aria-hidden="true">{active ? (query.order === "asc" ? "↑" : "↓") : "↕"}</span>
@@ -96,7 +119,7 @@ function SortableHeader({
   );
 }
 
-/** Delivery status of one email, used for confirmations and admin-written emails alike. */
+/** Delivery status of one email, used for the table and for each email's recipients. */
 function EmailStatusBadge({
   status,
   sentAt,
@@ -108,52 +131,92 @@ function EmailStatusBadge({
   error: string | null;
   attempts: number;
 }) {
-  const base = "inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold whitespace-nowrap";
+  const base = "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap";
   if (status === "sent") {
     return (
-      <span className={`${base} bg-[#e8f6e8] text-green`} title={sentAt ? `Sent ${fmt(sentAt)}` : undefined}>
+      <span className={`${base} bg-[#e3f4e3] text-[#1d6b1d]`} title={sentAt ? `Sent ${fmt(sentAt)}` : undefined}>
+        <span aria-hidden="true" className="size-1.5 rounded-full bg-[#1d6b1d]" />
         Sent
       </span>
     );
   }
   if (status === "failed") {
     return (
-      <span className={`${base} bg-[#fdece4] text-[#c1440e]`} title={error ? `${error} (${attempts} attempt${attempts === 1 ? "" : "s"})` : undefined}>
+      <span className={`${base} bg-[#fdece4] text-[#a33d0c]`} title={error ? `${error} (${attempts} attempt${attempts === 1 ? "" : "s"})` : undefined}>
+        <span aria-hidden="true" className="size-1.5 rounded-full bg-[#a33d0c]" />
         Failed
       </span>
     );
   }
-  if (status === "pending" || status === "sending") return <span className={`${base} bg-[#e9efff] text-royal`}>Sending…</span>;
+  if (status === "pending" || status === "sending") {
+    return (
+      <span className={`${base} bg-[#e9efff] text-royal`}>
+        <Icon name="loader" size={12} className="animate-spin" />
+        Sending
+      </span>
+    );
+  }
   return (
-    <span className={`${base} bg-[#eef1f8] text-muted`} title={error ?? "Registered before confirmation emails were added."}>
+    <span className={`${base} bg-[#eef1f8] text-[#3d4a6b]`} title={error ?? "Registered before confirmation emails were added."}>
       Not sent
     </span>
   );
 }
 
-/** Coloured action buttons for the registrations popup: tinted at rest, filled on hover. */
-const toneButton =
-  "inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl border px-4 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60";
-const royalButton = `${toneButton} border-royal/30 bg-royal/10 text-royal hover:bg-royal hover:text-white`;
-const greenButton = `${toneButton} border-green/30 bg-green/10 text-green hover:bg-green hover:text-white`;
-const orangeButton = `${toneButton} border-orange/30 bg-orange/10 text-orange-dark hover:bg-orange-dark hover:text-white`;
-const solidButton = `${toneButton} border-royal bg-royal text-white hover:bg-royal-dark`;
+type MenuItem = { label: string; onSelect: () => void; disabled?: boolean };
 
+/** One "Actions" menu for the workshop, so the page itself stays uncluttered. */
+function ActionsMenu({ items }: { items: MenuItem[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-function fmt(iso: string): string {
-  return new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className={secondaryButton}>
+        Actions
+        <Icon name="chevronDown" size={16} className={`transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-xl border border-line bg-white py-1.5 shadow-soft">
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              onClick={() => {
+                setOpen(false);
+                item.onSelect();
+              }}
+              className="block w-full cursor-pointer px-4 py-2.5 text-left text-[14px] font-medium text-navy transition-colors hover:bg-[#f0f4fb] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
-/** Seat limit setting, the list of registrations, and CSV export for one workshop. */
-export function WorkshopRegistrationsDialog({
-  workshop,
-  onSaved,
-  onClose,
-}: {
-  workshop: WorkshopListItem;
-  onSaved: (message: string) => void;
-  onClose: () => void;
-}) {
+/** Seat limit, registrants, and emails for one workshop. Used on the dashboard's Registrations section. */
+export function WorkshopRegistrationsPanel({ workshop, onSaved }: { workshop: WorkshopListItem; onSaved: (message: string) => void }) {
   const router = useRouter();
   const id = useId();
   const [rows, setRows] = useState<Registration[] | null>(null);
@@ -172,6 +235,7 @@ export function WorkshopRegistrationsDialog({
   const [resendError, setResendError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [composing, setComposing] = useState(false);
+  const [seatOpen, setSeatOpen] = useState(false);
   const [emails, setEmails] = useState<SentEmail[] | null>(null);
   const [emailsError, setEmailsError] = useState<string | null>(null);
   const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
@@ -329,6 +393,7 @@ export function WorkshopRegistrationsDialog({
       }
       startRefresh(() => {
         router.refresh();
+        setSeatOpen(false);
         onSaved(checked.data.capacity === null ? "Seat limit removed." : `Seat limit set to ${checked.data.capacity}.`);
       });
     } catch (err) {
@@ -401,39 +466,48 @@ export function WorkshopRegistrationsDialog({
   // Previous rows stay on screen (dimmed) while the next page loads.
   const pageLoading = rows !== null && loadedKey !== queryKey;
   const allOnPageSelected = rows !== null && rows.length > 0 && rows.every((r) => selected.has(r.id));
+  const filtersActive = query.q !== "" || query.email !== "all";
+  const capacityNumber = workshop.registration.capacity;
 
   return (
-    <Modal labelledBy={`${id}-heading`} busy={busy} dismissOnBackdrop className="max-w-[874px]" onClose={onClose}>
-      <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-line bg-white px-6 py-4">
+    <>
+      {/* Header: which workshop this is, and one menu for everything you can do with it. */}
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line px-6 py-5">
         <div className="min-w-0">
-          <h2 id={`${id}-heading`} className="font-display text-[18px] font-bold text-navy">
-            Registrations
-          </h2>
-          <p className="mt-0.5 truncate text-[13px] text-muted">{workshop.title}</p>
+          <p className="text-[12px] font-bold tracking-[1.2px] text-[#4a5a85] uppercase">Registrations</p>
+          <h2 className="mt-1 font-display text-[20px] font-bold break-words text-navy">{workshop.title}</h2>
+          <p className="mt-1 text-[14px] text-[#2b3a63]">
+            <span className="font-semibold text-navy tabular-nums">{count}</span> registered
+            {capacityNumber !== null && ` of ${capacityNumber} seats`}
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={busy}
-          aria-label="Close"
-          className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-muted transition-colors hover:bg-[#f5f8ff] hover:text-navy disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Icon name="close" size={21} />
-        </button>
-      </header>
+        <ActionsMenu
+          items={[
+            { label: "Seat limit", onSelect: () => setSeatOpen(true) },
+            { label: exporting ? "Exporting…" : "Download list", onSelect: () => void exportCsv(), disabled: exporting || count === 0 },
+            {
+              label: selected.size > 0 ? `Email selected (${selected.size})` : "Email registrants",
+              onSelect: () => setComposing(true),
+              disabled: count === 0 && selected.size === 0,
+            },
+          ]}
+        />
+      </div>
+      {exportError && <p role="alert" className="px-6 pt-3 text-[13px] font-medium text-[#a33d0c]">{exportError}</p>}
 
-      <div className="grid gap-6 p-6">
-        <form onSubmit={saveCapacity} noValidate className="grid gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border border-line bg-canvas/60 px-4 py-3">
-            <div className="min-w-0">
-              <label htmlFor={`${id}-capacity`} className="block text-[13px] font-semibold text-navy">
+      {seatOpen && (
+        <Modal labelledBy={`${id}-seat-heading`} busy={busy} dismissOnBackdrop className="max-w-[420px]" onClose={() => setSeatOpen(false)}>
+          <form onSubmit={saveCapacity} noValidate className="grid gap-4 p-6">
+            <div>
+              <h3 id={`${id}-seat-heading`} className="font-display text-[18px] font-bold text-navy">
                 Seat limit
-              </label>
-              <p id={`${id}-capacity-hint`} className="text-[12px] text-muted">
-                Blank = unlimited. Closes automatically when full.
-              </p>
+              </h3>
+              <p className="mt-1 text-[13px] text-[#4a5a85]">Leave empty for no limit. Registration closes by itself when every seat is taken.</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="grid gap-1.5">
+              <label htmlFor={`${id}-capacity`} className="text-[13px] font-semibold text-navy">
+                Maximum seats
+              </label>
               <input
                 id={`${id}-capacity`}
                 type="number"
@@ -443,301 +517,299 @@ export function WorkshopRegistrationsDialog({
                 step={1}
                 value={capacity}
                 onChange={(e) => setCapacity(e.target.value)}
-                placeholder="Unlimited"
+                placeholder="No limit"
                 disabled={busy}
                 aria-invalid={Boolean(capacityError)}
-                aria-describedby={`${id}-capacity-hint`}
-                className="h-10 w-32 rounded-xl border border-[#8d9bc4] bg-white px-3 text-[14px] text-navy outline-none transition-[border-color,box-shadow] placeholder:text-muted/70 hover:border-royal focus:border-royal focus:ring-4 focus:ring-royal/15 disabled:cursor-not-allowed disabled:opacity-70"
+                className={`${field} h-10 w-full`}
               />
-              <button type="submit" disabled={busy} className={solidButton}>
-                {busy && <Icon name="loader" size={16} className="inline-block animate-spin" />}
+              {capacityError && (
+                <p role="alert" className="text-[13px] font-medium text-[#a33d0c]">
+                  {capacityError}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2.5">
+              <button type="button" onClick={() => setSeatOpen(false)} disabled={busy} className={secondaryButton}>
+                Cancel
+              </button>
+              <button type="submit" disabled={busy} className={primaryButton}>
+                {busy && <Icon name="loader" size={16} className="animate-spin" />}
                 {busy ? "Saving…" : "Save"}
               </button>
             </div>
-          </div>
-          {capacityError && (
-            <p role="alert" className="rounded-xl bg-[#fdece4] px-4 py-3 text-[13px] font-medium text-[#c1440e]">
-              {capacityError}
-            </p>
-          )}
-        </form>
+          </form>
+        </Modal>
+      )}
 
-        <section className="overflow-hidden rounded-xl border border-line" aria-labelledby={`${id}-list`}>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-[#f5f8ff] px-4 py-3">
-            <h3 id={`${id}-list`} className="text-[13px] font-semibold text-navy">
-              {count} registered
-              {workshop.registration.capacity !== null && ` of ${workshop.registration.capacity} seats`}
-            </h3>
-            <div className="flex flex-wrap items-center gap-2">
+      {/* Find people and filter by email status. */}
+      {count > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+          <label className="relative w-full max-w-[300px]">
+            <span className="sr-only">Search registrants</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              maxLength={100}
+              placeholder="Search by name, email or phone"
+              className={`${field} h-10 w-full`}
+            />
+          </label>
+          <label className="flex items-center gap-2 text-[13px] font-medium text-[#2b3a63]">
+            Confirmation email
+            <select
+              value={query.email}
+              onChange={(e) => updateQuery({ email: e.target.value as RegistrationListQuery["email"] })}
+              className={`${field} h-10`}
+            >
+              {EMAIL_FILTER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+      {resendError && <p role="alert" className="px-6 pb-3 text-[13px] font-medium text-[#a33d0c]">{resendError}</p>}
+
+      {/* Registrants. */}
+      {loadError ? (
+        <p role="alert" className="px-6 py-12 text-center text-[14px] font-medium text-[#a33d0c]">
+          {loadError}
+        </p>
+      ) : rows === null ? (
+        <p className="flex items-center justify-center gap-2 px-6 py-12 text-[14px] text-[#4a5a85]" role="status">
+          <Icon name="loader" size={16} className="animate-spin" /> Loading registrants…
+        </p>
+      ) : rows.length === 0 ? (
+        <div className="px-6 py-12 text-center">
+          <p className="text-[15px] font-semibold text-navy">{filtersActive ? "No one matches these filters" : "No one has registered yet"}</p>
+          <p className="mt-1 text-[13px] text-[#4a5a85]">
+            {filtersActive ? "Try a different name or filter." : "Sign-ups will appear here as people register."}
+          </p>
+        </div>
+      ) : (
+        <div className={`overflow-x-auto transition-opacity ${pageLoading ? "opacity-60" : ""}`} aria-busy={pageLoading}>
+          <table className="w-full min-w-[760px] text-left text-[14px]">
+            <thead className="border-y border-line bg-[#f7f9fd] text-[12px] font-semibold tracking-[0.4px] text-[#2b3a63] uppercase">
+              <tr>
+                <th className="w-12 py-3 pl-6">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all registrants on this page"
+                    checked={allOnPageSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = !allOnPageSelected && rows.some((r) => selected.has(r.id));
+                    }}
+                    onChange={(e) =>
+                      setSelected((current) => {
+                        const next = new Set(current);
+                        for (const r of rows) {
+                          if (e.target.checked) next.add(r.id);
+                          else next.delete(r.id);
+                        }
+                        return next;
+                      })
+                    }
+                    className="size-4 cursor-pointer accent-royal"
+                  />
+                </th>
+                <SortableHeader label="Name" field="name" query={query} onSort={toggleSort} />
+                <th className="px-4 py-3 font-semibold">Contact</th>
+                <SortableHeader label="Registered" field="createdAt" query={query} onSort={toggleSort} />
+                <th className="px-4 py-3 font-semibold">Confirmation email</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr
+                  key={r.id}
+                  className={`border-b border-line transition-colors last:border-0 ${selected.has(r.id) ? "bg-[#eef4ff]" : "hover:bg-[#f7f9fd]"}`}
+                >
+                  <td className="py-3.5 pl-6">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${r.name}`}
+                      checked={selected.has(r.id)}
+                      onChange={() => toggleSelected(r.id)}
+                      className="size-4 cursor-pointer accent-royal"
+                    />
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-royal/10 text-[13px] font-bold text-royal">
+                        {initials(r.name)}
+                      </span>
+                      <span className="font-semibold text-navy break-words">{r.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <a href={`mailto:${r.email}`} className="block text-navy break-all hover:text-royal">
+                      {r.email}
+                    </a>
+                    <a href={`tel:${r.phone}`} className="mt-0.5 block text-[13px] whitespace-nowrap text-[#4a5a85] hover:text-royal">
+                      {r.phone}
+                    </a>
+                  </td>
+                  <td className="px-4 py-3.5 text-[13px] whitespace-nowrap text-[#2b3a63] tabular-nums">{fmt(r.createdAt)}</td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <EmailStatusBadge status={r.emailStatus} sentAt={r.emailSentAt} error={r.emailError} attempts={r.emailAttempts} />
+                      {canResend(r.emailStatus) && (
+                        <button
+                          type="button"
+                          onClick={() => void resendEmail(r)}
+                          disabled={resendingId !== null}
+                          aria-label={`Resend confirmation email to ${r.email}`}
+                          className={smallButton}
+                        >
+                          {resendingId === r.id && <Icon name="loader" size={13} className="animate-spin" />}
+                          {resendingId === r.id ? "Sending…" : "Resend"}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Paging. */}
+      {pagination && pagination.total > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 border-t border-line px-6 py-3">
+          <p role="status" className="text-[13px] text-[#2b3a63]">
+            Showing{" "}
+            <span className="font-semibold text-navy tabular-nums">
+              {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)}
+            </span>{" "}
+            of <span className="font-semibold text-navy tabular-nums">{pagination.total}</span>
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-[13px] font-medium text-[#2b3a63]">
+              Rows
+              <select value={query.limit} onChange={(e) => updateQuery({ limit: Number(e.target.value) })} className={`${field} h-8 px-2 text-[13px]`}>
+                {REGISTRATION_PAGE_LIMITS.filter((n) => n <= 50).map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="inline-flex items-center overflow-hidden rounded-lg border border-[#8d9bc4] bg-white">
               <button
                 type="button"
-                onClick={() => setComposing(true)}
-                disabled={count === 0 && selected.size === 0}
-                aria-haspopup="dialog"
-                className={royalButton}
+                onClick={() => setQuery((current) => ({ ...current, page: current.page - 1 }))}
+                disabled={!pagination.hasPrevPage || pageLoading}
+                aria-label="Previous page"
+                className={pageButton}
               >
-                <Icon name="mail" size={16} />
-                {selected.size > 0 ? `Email selected (${selected.size})` : "Email all registrants"}
+                ← Prev
               </button>
-              <button type="button" onClick={() => void exportCsv()} disabled={exporting || count === 0} className={greenButton}>
-                <Icon name={exporting ? "loader" : "download"} size={16} className={exporting ? "inline-block animate-spin" : ""} />
-                {exporting ? "Exporting…" : "Export CSV"}
+              <span className="border-x border-line px-3 text-[13px] font-semibold whitespace-nowrap text-navy tabular-nums">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setQuery((current) => ({ ...current, page: current.page + 1 }))}
+                disabled={!pagination.hasNextPage || pageLoading}
+                aria-label="Next page"
+                className={pageButton}
+              >
+                Next →
               </button>
             </div>
           </div>
-          {exportError && (
-            <p role="alert" className="border-b border-line bg-[#fdece4] px-4 py-3 text-[13px] font-medium text-[#c1440e]">
-              {exportError}
-            </p>
-          )}
-          {resendError && (
-            <p role="alert" className="border-b border-line bg-[#fdece4] px-4 py-3 text-[13px] font-medium text-[#c1440e]">
-              {resendError}
-            </p>
-          )}
-          {count > 0 && (
-            <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
-              <label className="relative min-w-[200px] flex-1">
-                <span className="sr-only">Search registrations</span>
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  maxLength={100}
-                  placeholder="Search name, email or phone"
-                  className={field}
-                />
-              </label>
-              <label className="flex items-center gap-2 text-[13px] font-semibold text-navy">
-                Confirmation
-                <select
-                  value={query.email}
-                  onChange={(e) => updateQuery({ email: e.target.value as RegistrationListQuery["email"] })}
-                  className={`${field} w-auto py-2`}
-                >
-                  {EMAIL_FILTER_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          )}
-          {loadError ? (
-            <p role="alert" className="px-4 py-6 text-center text-[13px] text-[#c1440e]">
-              {loadError}
-            </p>
-          ) : rows === null ? (
-            <p className="flex items-center justify-center gap-2 px-4 py-6 text-[13px] text-muted" role="status">
-              <Icon name="loader" size={16} className="inline-block animate-spin" /> Loading registrations…
-            </p>
-          ) : rows.length === 0 ? (
-            <p className="px-4 py-6 text-center text-[13px] text-muted">
-              {query.q || query.email !== "all" ? "No registrations match these filters." : "No registrations yet."}
-            </p>
-          ) : (
-            <div className={`overflow-x-auto transition-opacity ${pageLoading ? "opacity-60" : ""}`} aria-busy={pageLoading}>
-              <table className="w-full min-w-[720px] text-left text-[13px]">
-                <thead>
-                  <tr className="border-b border-line text-[11px] font-semibold tracking-[0.5px] text-muted uppercase">
-                    <th className="w-10 py-2.5 pl-4">
-                      <input
-                        type="checkbox"
-                        aria-label="Select all registrants on this page"
-                        checked={allOnPageSelected}
-                        ref={(el) => {
-                          if (el) el.indeterminate = !allOnPageSelected && rows.some((r) => selected.has(r.id));
-                        }}
-                        onChange={(e) =>
-                          setSelected((current) => {
-                            const next = new Set(current);
-                            for (const r of rows) {
-                              if (e.target.checked) next.add(r.id);
-                              else next.delete(r.id);
-                            }
-                            return next;
-                          })
-                        }
-                        className="size-4 cursor-pointer accent-royal"
-                      />
-                    </th>
-                    <SortableHeader label="Name" field="name" query={query} onSort={toggleSort} />
-                    <th className="px-4 py-2.5">Phone</th>
-                    <th className="px-4 py-2.5">Email</th>
-                    <SortableHeader label="Registered" field="createdAt" query={query} onSort={toggleSort} />
-                    <th className="px-4 py-2.5">Confirmation</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {rows.map((r) => (
-                    <tr key={r.id}>
-                      <td className="py-2.5 pl-4">
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${r.name}`}
-                          checked={selected.has(r.id)}
-                          onChange={() => toggleSelected(r.id)}
-                          className="size-4 cursor-pointer accent-royal"
-                        />
-                      </td>
-                      <td className="px-4 py-2.5 text-navy break-all">{r.name}</td>
-                      <td className="px-4 py-2.5 whitespace-nowrap text-muted">
-                        <a href={`tel:${r.phone}`} className="hover:text-royal">{r.phone}</a>
-                      </td>
-                      <td className="px-4 py-2.5 text-muted break-all">
-                        <a href={`mailto:${r.email}`} className="hover:text-royal">{r.email}</a>
-                      </td>
-                      <td className="px-4 py-2.5 whitespace-nowrap text-muted">{fmt(r.createdAt)}</td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <EmailStatusBadge status={r.emailStatus} sentAt={r.emailSentAt} error={r.emailError} attempts={r.emailAttempts} />
-                          {canResend(r.emailStatus) && (
-                            <button
-                              type="button"
-                              onClick={() => void resendEmail(r)}
-                              disabled={resendingId !== null}
-                              aria-label={`Resend confirmation email to ${r.email}`}
-                              className="inline-flex cursor-pointer items-center gap-1 text-[12px] font-semibold whitespace-nowrap text-royal hover:underline disabled:cursor-wait disabled:opacity-60"
-                            >
-                              {resendingId === r.id && <Icon name="loader" size={13} className="inline-block animate-spin" />}
-                              {resendingId === r.id ? "Sending…" : "Resend"}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {pagination && pagination.total > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-3 text-[13px] text-muted">
-              <p role="status">
-                Showing {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-                {pagination.total}
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2">
-                  Rows per page
-                  <select
-                    value={query.limit}
-                    onChange={(e) => updateQuery({ limit: Number(e.target.value) })}
-                    className={`${field} w-auto py-1.5`}
-                  >
-                    {REGISTRATION_PAGE_LIMITS.filter((n) => n <= 50).map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <span>
-                  Page {pagination.page} of {pagination.totalPages}
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setQuery((current) => ({ ...current, page: current.page - 1 }))}
-                    disabled={!pagination.hasPrevPage || pageLoading}
-                    className={secondaryButton}
-                  >
-                    ← Previous
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQuery((current) => ({ ...current, page: current.page + 1 }))}
-                    disabled={!pagination.hasNextPage || pageLoading}
-                    className={secondaryButton}
-                  >
-                    Next →
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
+        </div>
+      )}
 
-        <section className="overflow-hidden rounded-xl border border-line" aria-labelledby={`${id}-emails`}>
-          <h3 id={`${id}-emails`} className="border-b border-line bg-[#f5f8ff] px-4 py-3 text-[13px] font-semibold text-navy">
+      {/* Emails sent: a plain list, details open on demand. */}
+      <section aria-labelledby={`${id}-emails`} className="border-t border-line px-6 py-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h3 id={`${id}-emails`} className="font-display text-[17px] font-bold text-navy">
             Emails sent
           </h3>
-          {emailsError && (
-            <p role="alert" className="border-b border-line bg-[#fdece4] px-4 py-3 text-[13px] font-medium text-[#c1440e]">
-              {emailsError}
+          <p className="text-[13px] text-[#4a5a85]">Every message you have sent to registrants, and how each one went.</p>
+        </div>
+
+        {emailsError && (
+          <p role="alert" className="mt-3 text-[13px] font-medium text-[#a33d0c]">
+            {emailsError}
+          </p>
+        )}
+        {emails === null ? (
+          !emailsError && (
+            <p className="mt-3 flex items-center gap-2 text-[13px] text-[#4a5a85]" role="status">
+              <Icon name="loader" size={14} className="animate-spin" /> Loading…
             </p>
-          )}
-          {emails === null ? (
-            !emailsError && (
-              <p className="flex items-center justify-center gap-2 px-4 py-6 text-[13px] text-muted" role="status">
-                <Icon name="loader" size={16} className="inline-block animate-spin" /> Loading…
-              </p>
-            )
-          ) : emails.length === 0 ? (
-            <p className="px-4 py-6 text-center text-[13px] text-muted">No emails sent to registrants yet.</p>
-          ) : (
-            <ul className="divide-y divide-line">
-              {emails.map((e) => {
-                const expanded = expandedEmailId === e.id;
-                return (
-                  <li key={e.id} className="px-4 py-3">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
+          )
+        ) : emails.length === 0 ? (
+          <p className="mt-3 text-[14px] text-[#4a5a85]">Nothing sent yet. Use “Email registrants” to send an update.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-line">
+            {emails.map((e) => {
+              const expanded = expandedEmailId === e.id;
+              return (
+                <li key={e.id} className="py-4 first:pt-0">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px] font-semibold text-navy">{e.subject}</p>
+                      <p className="mt-0.5 text-[13px] text-[#4a5a85]">
+                        {fmt(e.createdAt)} · by {e.sentBy} · {e.audience === "all" ? "all registrants" : "selected registrants"}
+                        {e.attachments.length > 0 && ` · ${e.attachments.length} attachment${e.attachments.length === 1 ? "" : "s"}`}
+                      </p>
+                      <p className="mt-1.5 flex flex-wrap gap-x-3 text-[13px] font-medium">
+                        <span className="text-[#1d6b1d]">{e.counts.sent} sent</span>
+                        {e.counts.failed > 0 && <span className="text-[#a33d0c]">{e.counts.failed} not delivered</span>}
+                        {e.counts.sending > 0 && <span className="text-royal">{e.counts.sending} sending</span>}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {e.counts.failed > 0 && (
+                        <button type="button" onClick={() => void retryEmail(e)} disabled={retryingId !== null} className={smallButton}>
+                          {retryingId === e.id && <Icon name="loader" size={13} className="animate-spin" />}
+                          {retryingId === e.id ? "Retrying…" : "Retry failed"}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setExpandedEmailId(expanded ? null : e.id)}
                         aria-expanded={expanded}
-                        className="min-w-0 flex-1 cursor-pointer text-left"
+                        className="h-8 cursor-pointer rounded-lg px-3 text-[13px] font-semibold text-royal transition-colors hover:bg-royal/10"
                       >
-                        <p className="truncate text-[14px] font-semibold text-navy">{e.subject}</p>
-                        <p className="mt-0.5 text-[12px] text-muted">
-                          {fmt(e.createdAt)} · by {e.sentBy} · {e.audience === "all" ? "all registrants" : "selected registrants"}
-                          {e.attachments.length > 0 && ` · ${e.attachments.length} attachment${e.attachments.length === 1 ? "" : "s"}`}
-                        </p>
-                        <p className="mt-1 text-[12px] font-medium">
-                          <span className="text-green">{e.counts.sent} sent</span>
-                          {e.counts.failed > 0 && <span className="text-[#c1440e]"> · {e.counts.failed} not delivered</span>}
-                          {e.counts.sending > 0 && <span className="text-royal"> · {e.counts.sending} sending…</span>}
-                        </p>
+                        {expanded ? "Hide details" : "View details"}
                       </button>
-                      {e.counts.failed > 0 && (
-                        <button type="button" onClick={() => void retryEmail(e)} disabled={retryingId !== null} className={orangeButton}>
-                          {retryingId === e.id && <Icon name="loader" size={16} className="inline-block animate-spin" />}
-                          {retryingId === e.id ? "Retrying…" : "Retry failed"}
-                        </button>
-                      )}
                     </div>
-                    {expanded && (
-                      <div className="mt-3 grid gap-3">
-                        <p className="rounded-lg bg-[#f5f8ff] px-3 py-2 text-[13px] whitespace-pre-wrap text-navy">{e.message}</p>
-                        {e.attachments.length > 0 && (
-                          <ul className="flex flex-wrap gap-2" aria-label="Attachments">
-                            {e.attachments.map((a, i) => (
-                              <li key={`${a.filename}-${i}`} className="rounded-lg border border-line px-2.5 py-1 text-[12px] text-navy">
-                                {a.filename} <span className="text-muted">· {formatBytes(a.size)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        <ul className="divide-y divide-line rounded-lg border border-line">
-                          {e.recipients.map((r) => (
-                            <li key={r.registrationId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-[13px]">
-                              <span className="min-w-0 break-all text-navy">
-                                {r.name} <span className="text-muted">· {r.email}</span>
-                              </span>
-                              <EmailStatusBadge status={r.status} sentAt={r.sentAt} error={r.lastError} attempts={r.attempts} />
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-      </div>
+                  </div>
+
+                  {expanded && (
+                    <div className="mt-4 grid gap-4 border-l-2 border-royal/30 pl-4">
+                      <p className="text-[14px] leading-relaxed whitespace-pre-wrap text-[#2b3a63]">{e.message}</p>
+                      {e.attachments.length > 0 && (
+                        <p className="text-[13px] text-[#4a5a85]">
+                          Attached: {e.attachments.map((a) => `${a.filename} (${formatBytes(a.size)})`).join(", ")}
+                        </p>
+                      )}
+                      <ul className="divide-y divide-line">
+                        {e.recipients.map((r) => (
+                          <li key={r.registrationId} className="flex flex-wrap items-center justify-between gap-2 py-2 text-[13px]">
+                            <span className="min-w-0 break-all">
+                              <span className="font-semibold text-navy">{r.name}</span> <span className="text-[#4a5a85]">{r.email}</span>
+                            </span>
+                            <EmailStatusBadge status={r.status} sentAt={r.sentAt} error={r.lastError} attempts={r.attempts} />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       {composing && rows && (
         <WorkshopEmailComposer
@@ -754,6 +826,6 @@ export function WorkshopRegistrationsDialog({
           }}
         />
       )}
-    </Modal>
+    </>
   );
 }

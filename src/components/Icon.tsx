@@ -1,4 +1,5 @@
 type IconName =
+  | "chevronDown"
   | "palette"
   | "school"
   | "book"
@@ -65,6 +66,7 @@ const iconClass: Record<IconName, string> = {
   trash: "ri-delete-bin-line",
   loader: "ri-loader-4-line",
   download: "ri-download-2-line",
+  chevronDown: "ri-arrow-down-s-line",
 };
 
 type IconProps = {

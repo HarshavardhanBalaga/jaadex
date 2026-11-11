@@ -11,6 +11,7 @@ import { AdminLogoutButton } from "@/components/admin/AdminLogoutButton";
 import { Icon } from "@/components/Icon";
 import { AdminDashboardShell, type AdminSection } from "@/components/admin/AdminDashboardShell";
 import { WorkshopList, type WorkshopListItem } from "@/components/admin/WorkshopList";
+import { WorkshopRegistrationsView } from "@/components/admin/WorkshopRegistrationsView";
 import { interests, workshopInterest } from "@/lib/contact/validation";
 
 export const metadata: Metadata = { title: "Admin Dashboard", description: "JaaDeX admin dashboard." };
@@ -276,6 +277,13 @@ export default async function AdminDashboardPage() {
           <WorkshopList workshops={workshops} />
         </Card>
       ),
+    },
+    {
+      id: "registrations",
+      label: "Registrations",
+      icon: "check",
+      children: workshops.map((w) => ({ id: `registrations/${w.id}`, label: w.title })),
+      content: <WorkshopRegistrationsView workshops={workshops} />,
     },
     {
       id: "administrators",

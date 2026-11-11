@@ -10,7 +10,6 @@ import { Icon } from "@/components/Icon";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { Toast } from "@/components/admin/Toast";
 import { WorkshopForm } from "@/components/admin/WorkshopForm";
-import { WorkshopRegistrationsDialog } from "@/components/admin/WorkshopRegistrationsDialog";
 
 export type WorkshopListItem = {
   id: string;
@@ -41,7 +40,6 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [registrationsTarget, setRegistrationsTarget] = useState<WorkshopListItem | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [toggleError, setToggleError] = useState<{ id: string; message: string } | null>(null);
   const [isRefreshing, startRefresh] = useTransition();
@@ -118,12 +116,19 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
       {workshops.length === 0 ? (
         <p className="px-6 py-12 text-center text-[13px] text-muted">No workshops published yet. Click “Add new workshop” to publish your first one.</p>
       ) : (
-        <div className="divide-y divide-line">
+        <div className="flex flex-col gap-4 p-4 sm:p-5">
           {workshops.map((w) => (
-            <div key={w.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 px-6 py-5 transition-colors hover:bg-canvas/60 sm:flex-nowrap">
+            <div
+              key={w.id}
+              className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-line bg-gradient-to-br from-white to-[#f3f7ff] px-5 py-4 shadow-[0_1px_2px_rgb(7_7_79/0.04),0_8px_24px_-10px_rgb(7_7_79/0.14)] sm:flex-nowrap"
+            >
               <div className="flex min-w-0 flex-1 basis-full items-center gap-4 sm:basis-0">
-                {/* Data-URL image: plain img (next/image does not accept data: URLs). */}
-                <img src={w.image} alt="" className="h-14 w-20 shrink-0 rounded-lg border border-line object-cover" />
+                {/* Data-URL image: plain img (next/image does not accept data: URLs). Landscape 16:9 with a white frame. */}
+                <img
+                  src={w.image}
+                  alt=""
+                  className="aspect-video w-44 shrink-0 rounded-lg border-4 border-white object-cover shadow-[0_4px_12px_-4px_rgb(7_7_79/0.25)]"
+                />
                 <div className="min-w-0 flex-1">
                   <h4 className="truncate text-[14px] font-semibold text-navy">{w.title}</h4>
                   <p className="mt-0.5 text-[12px] text-muted">{workshopWhenWhere(w.date, w.location)}</p>
@@ -162,16 +167,14 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
                     Register now
                   </label>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setRegistrationsTarget(w)}
-                  aria-haspopup="dialog"
+                <a
+                  href={`#registrations/${w.id}`}
                   aria-label={`Registrations for ${w.title}`}
                   className={`${rowButton} hover:border-royal/40 hover:text-royal`}
                 >
                   <Icon name="users" size={14} />
                   Registrations ({w.registration.count})
-                </button>
+                </a>
                 {isWorkshopUpcoming(w.date) && (
                   <button
                     type="button"
@@ -238,16 +241,6 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
             </div>
           </div>
         </ConfirmDialog>
-      )}
-
-      {registrationsTarget && (
-        <WorkshopRegistrationsDialog
-          key={registrationsTarget.id}
-          // Read from the latest server list so counts stay current after a save.
-          workshop={workshops.find((w) => w.id === registrationsTarget.id) ?? registrationsTarget}
-          onClose={() => setRegistrationsTarget(null)}
-          onSaved={(message) => setToast(message)}
-        />
       )}
 
       {toast && <Toast message={toast} onDismiss={dismissToast} />}

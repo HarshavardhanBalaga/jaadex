@@ -67,19 +67,23 @@ function CalendarWorkshopCard({ workshop }: { workshop: CalendarWorkshop }) {
   const { registration } = workshop;
   const registrationOpen = !workshop.completed && registration.enabled;
   return (
-    <article className="grid overflow-hidden rounded-3xl border border-line bg-white shadow-[0_8px_24px_-12px_rgb(7_7_79/0.12)] md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <div className="relative flex items-center justify-center bg-canvas p-4 md:p-5">
-        {/* Data-URL image: plain img (next/image does not accept data: URLs). Shown whole, not cropped. */}
-        <img src={workshop.image} alt={workshop.title} className="max-h-72 w-full rounded-2xl object-contain" />
+    <article className="grid overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-[#dce7ff] via-[#f5f8ff] to-[#ffe3cc] shadow-[0_1px_2px_rgb(7_7_79/0.04),0_8px_24px_-10px_rgb(7_7_79/0.14)] md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <div className="relative flex items-center justify-center p-5 md:p-6">
+        {/* Data-URL image: plain img (next/image does not accept data: URLs). Landscape 16:9 frame with a white border. */}
+        <img
+          src={workshop.image}
+          alt={workshop.title}
+          className="aspect-video w-full rounded-2xl border-4 border-white object-cover shadow-[0_4px_12px_-4px_rgb(7_7_79/0.25)]"
+        />
         <span
-          className={`absolute top-7 left-7 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold tracking-[0.4px] text-white ${
+          className={`absolute top-9 left-9 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold tracking-[0.4px] text-white ${
             workshop.completed ? "bg-[#34a334]" : "bg-royal"
           }`}
         >
           <span className="size-1.5 rounded-full bg-white" aria-hidden="true" /> {workshop.completed ? "Completed" : "Upcoming"}
         </span>
       </div>
-      <div className="flex flex-col justify-center p-6 md:p-8">
+      <div className="flex flex-col justify-center bg-gradient-to-br from-[#dce7ff] via-[#f5f8ff] to-[#ffe3cc] p-6 md:p-8">
         <h3 className="font-display text-[22px] leading-[1.2] font-black tracking-[-0.5px] text-navy md:text-[24px]">{workshop.title}</h3>
         <p className="mt-2 text-[13px] font-bold text-royal">{workshopWhenWhere(workshop.date, workshop.location)}</p>
         <p className="mt-3 line-clamp-3 text-[14px] leading-[1.7] text-muted">{workshop.description}</p>
@@ -133,19 +137,7 @@ export default async function WorkshopsPage() {
 
     
 
-      {/* Workshop categories — first 3 themes */}
-      <Section>
-        <Container>
-          <SectionHeading eyebrow="Workshop Themes" title="What our workshops cover." description="Five focus areas adapted to the audience, time available, venue, and learning objectives." />
-          <div className="grid grid-cols-1 gap-[17px] md:grid-cols-3">
-            <PhotoCard src="/assets/workshop-education.jpg" alt="Students learning with creative technology in a classroom" title="Education Workshops" description="Creative technology and digital learning programs." />
-            <PhotoCard src="/assets/workshop-animation.jpg" alt="Hands-on drawing and animation activity" title="Animation Workshops" description="Hands-on animation and storytelling experiences." />
-            <PhotoCard src="/assets/workshop-collab.jpg" alt="Team collaborating on an innovation challenge" title="Innovation Events" description="Hackathons, idea challenges, and creative problem-solving activities." />
-          </div>
-        </Container>
-      </Section>
-
-      {/* Workshops list — right after the first two sections */}
+      {/* Workshops list — first section after the hero */}
       <Section>
         <Container>
           <div id="workshops" className="scroll-mt-24">
@@ -157,7 +149,7 @@ export default async function WorkshopsPage() {
               }
             />
           </div>
-          <div className="mx-auto grid max-w-[960px] grid-cols-1 gap-5">
+          <div className="mx-auto grid max-w-[1040px] grid-cols-1 gap-5">
             {calendarWorkshops.map((workshop) => (
               <CalendarWorkshopCard key={workshop.id} workshop={workshop} />
             ))}
@@ -170,6 +162,18 @@ export default async function WorkshopsPage() {
                 </div>
               </article>
             )}
+          </div>
+        </Container>
+      </Section>
+
+      {/* Workshop categories — first 3 themes */}
+      <Section>
+        <Container>
+          <SectionHeading eyebrow="Workshop Themes" title="What our workshops cover." description="Five focus areas adapted to the audience, time available, venue, and learning objectives." />
+          <div className="grid grid-cols-1 gap-[17px] md:grid-cols-3">
+            <PhotoCard src="/assets/workshop-education.jpg" alt="Students learning with creative technology in a classroom" title="Education Workshops" description="Creative technology and digital learning programs." />
+            <PhotoCard src="/assets/workshop-animation.jpg" alt="Hands-on drawing and animation activity" title="Animation Workshops" description="Hands-on animation and storytelling experiences." />
+            <PhotoCard src="/assets/workshop-collab.jpg" alt="Team collaborating on an innovation challenge" title="Innovation Events" description="Hackathons, idea challenges, and creative problem-solving activities." />
           </div>
         </Container>
       </Section>
