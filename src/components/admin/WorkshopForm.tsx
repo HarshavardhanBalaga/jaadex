@@ -101,6 +101,7 @@ export function WorkshopForm({
         title: String(data.get("title") ?? "").trim(),
         description: String(data.get("description") ?? "").trim(),
         date: String(data.get("date") ?? "").trim(),
+        time: String(data.get("time") ?? "").trim(),
         location: String(data.get("location") ?? "").trim(),
         ...(dataUrl ? { image: dataUrl } : {}),
       };
@@ -221,12 +222,18 @@ export function WorkshopForm({
               </div>
 
               <div className="grid gap-2">
-                <div className="grid gap-5 sm:grid-cols-2">
+                <div className="grid gap-5 sm:grid-cols-3">
                   <div className="grid gap-2">
                     <label className={label} htmlFor={`${id}-date`}>
                       Date (optional)
                     </label>
                     <input id={`${id}-date`} name="date" type="date" defaultValue={workshop?.date?.slice(0, 10)} className={field} />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className={label} htmlFor={`${id}-time`}>
+                      Time (optional)
+                    </label>
+                    <input id={`${id}-time`} name="time" type="text" maxLength={60} defaultValue={workshop?.time} placeholder="e.g. 10:00 AM – 1:00 PM" className={field} />
                   </div>
                   <div className="grid gap-2">
                     <label className={label} htmlFor={`${id}-location`}>
@@ -235,7 +242,7 @@ export function WorkshopForm({
                     <input id={`${id}-location`} name="location" type="text" maxLength={200} defaultValue={workshop?.location} placeholder="e.g. RTIH, Mangalagiri" className={field} />
                   </div>
                 </div>
-                <p className="text-[12px] text-muted">Not confirmed yet? Leave the date or location blank, and the website will show “To be announced”.</p>
+                <p className="text-[12px] text-muted">Not confirmed yet? Leave the date, time or location blank, and the website will show “To be announced”.</p>
               </div>
             </div>
 

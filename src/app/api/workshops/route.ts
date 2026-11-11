@@ -58,6 +58,7 @@ export async function POST(request: Request) {
       title: parsed.data.title,
       description: parsed.data.description,
       date: parsed.data.date,
+      time: parsed.data.time,
       location: parsed.data.location,
       image: parsed.data.image,
     });

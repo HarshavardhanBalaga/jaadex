@@ -22,7 +22,7 @@ export function Hero({ title, description, cta }: HeroProps) {
         playsInline
         className="absolute inset-0 h-full w-full object-cover"
       >
-        <source src="/logo/jaadex-hero-video.mp4" type="video/mp4" />
+        <source src="/logo/jaadex-hero-video-1.mp4" type="video/mp4" />
       </video>
 
       {/* Compact card bottom-left, slightly overlapping video (~20% of card over video edge zone) */}

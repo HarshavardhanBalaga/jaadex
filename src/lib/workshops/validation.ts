@@ -13,6 +13,8 @@ export const workshopSchema = z
     description: z.string().trim().min(10, "Enter a description (min 10 characters).").max(3000),
     // Blank date / location means "to be announced".
     date: z.preprocess((v) => (v === "" || v === undefined ? null : v), z.coerce.date<Date>("Pick a valid date.").nullable()),
+    // Free text, optional: "10:00 AM – 1:00 PM". Blank means "to be announced".
+    time: z.string().trim().max(60, "Keep the time under 60 characters.").default(""),
     location: z
       .string()
       .trim()

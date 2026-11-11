@@ -54,6 +54,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         title: parsed.data.title,
         description: parsed.data.description,
         date: parsed.data.date,
+        time: parsed.data.time,
         location: parsed.data.location,
         ...(parsed.data.image ? { image: parsed.data.image } : {}),
       },

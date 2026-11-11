@@ -13,15 +13,14 @@ import { buildRegistrationsCsv, registrationsCsvFilename } from "../registration
 const root = process.cwd();
 const src = (p: string): string => readFileSync(join(root, p), "utf8");
 
-const good = { name: "Priya Sharma", phone: "+91 98765-43210", email: " Priya@Example.com ", website: "" };
+const good = { name: "Priya Sharma", phone: "9876543210", email: " Priya@Example.com ", website: "" };
 
 describe("workshop registration validation", () => {
-  it("accepts a valid registration and normalises phone + email", () => {
+  it("accepts a valid registration and normalises email", () => {
     const parsed = registrationSchema.safeParse(good);
     assert.equal(parsed.success, true);
-    assert.equal(parsed.data?.phone, "+919876543210");
+    assert.equal(parsed.data?.phone, "9876543210");
     assert.equal(parsed.data?.email, "priya@example.com");
-    assert.equal(registrationSchema.safeParse({ ...good, phone: "(040) 2345 6789" }).success, true);
   });
 
   it("rejects bad input", () => {
@@ -29,7 +28,9 @@ describe("workshop registration validation", () => {
     assert.equal(registrationSchema.safeParse({ ...good, name: "x".repeat(81) }).success, false);
     assert.equal(registrationSchema.safeParse({ ...good, phone: "12345" }).success, false);
     assert.equal(registrationSchema.safeParse({ ...good, phone: "98765abcde" }).success, false);
-    assert.equal(registrationSchema.safeParse({ ...good, phone: "1".repeat(16) }).success, false);
+    assert.equal(registrationSchema.safeParse({ ...good, phone: "+919876543210" }).success, false);
+    assert.equal(registrationSchema.safeParse({ ...good, phone: "98765 43210" }).success, false);
+    assert.equal(registrationSchema.safeParse({ ...good, phone: "98765432100" }).success, false);
     assert.equal(registrationSchema.safeParse({ ...good, email: "not-an-email" }).success, false);
     assert.equal(registrationSchema.safeParse({ ...good, phone: undefined }).success, false);
   });
@@ -129,14 +130,16 @@ describe("workshop registration authorization", () => {
     assert.match(service, /keyPattern/);
     assert.match(service, /export async function registeredWorkshopIds/);
     assert.match(userRoute, /contact_already_registered/);
-    const button = src("src/components/workshops/WorkshopRegisterButton.tsx");
-    assert.match(button, /"already_registered"/);
-    assert.match(button, /alreadyRegistered\) setDialog\("registered"\)/);
+    const form = src("src/components/workshops/WorkshopRegisterForm.tsx");
+    assert.match(form, /"already_registered"/);
+    const registerPage = src("src/app/workshops/[id]/register/page.tsx");
+    assert.match(registerPage, /registeredWorkshopIds\(user\)/);
+    assert.match(registerPage, /alreadyRegistered \?/);
     assert.match(src("src/app/api/workshops/[id]/route.ts"), /deleteWorkshopRegistrations\(id\)/);
   });
 
   it("client forms validate with the shared zod schemas", () => {
-    assert.match(src("src/components/workshops/WorkshopRegisterButton.tsx"), /registrationSchema\.safeParse\(/);
+    assert.match(src("src/components/workshops/WorkshopRegisterForm.tsx"), /registrationSchema\.safeParse\(/);
     assert.match(src("src/components/admin/WorkshopRegistrationsDialog.tsx"), /registrationSettingsSchema\.safeParse\(/);
   });
 });
