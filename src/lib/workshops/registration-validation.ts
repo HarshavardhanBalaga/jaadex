@@ -4,11 +4,8 @@ import { z } from "zod";
 export const registrationSchema = z
   .object({
     name: z.string().trim().min(2, "Enter your name.").max(80, "Keep your name under 80 characters."),
-    // Spaces, dashes, dots and brackets are formatting only: "+91 98765-43210" is stored as "+919876543210".
-    phone: z
-      .string()
-      .transform((v) => v.replace(/[\s\-().]/g, ""))
-      .pipe(z.string().regex(/^\+?[0-9]{10,15}$/, "Enter a valid phone number (10–15 digits).")),
+    // Exactly 10 digits, no country code or separators.
+    phone: z.string().trim().regex(/^[0-9]{10}$/, "Enter a 10-digit phone number."),
     email: z.string().trim().toLowerCase().min(3, "Enter a valid email address.").max(254).email("Enter a valid email address."),
     // Honeypot: real users leave it empty; bots fill it. Must stay empty.
     website: z.string().max(0, "Invalid submission.").optional().default(""),

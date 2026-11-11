@@ -5,7 +5,7 @@ import { isWorkshopUpcoming } from "@/lib/workshops/format";
 import { WORKSHOP_TITLE_COLLATION, WorkshopModel } from "@/models/Workshop";
 import { WorkshopRegistrationModel } from "@/models/WorkshopRegistration";
 
-const LIST_FIELDS = { title: 1, description: 1, date: 1, location: 1, image: 1, registration: 1 };
+const LIST_FIELDS = { title: 1, description: 1, date: 1, time: 1, location: 1, image: 1, registration: 1 };
 
 export const DUPLICATE_TITLE_MESSAGE = "A workshop with this title already exists. Please use a different title.";
 
@@ -28,6 +28,28 @@ export async function listUpcomingWorkshopInterests(): Promise<string[]> {
   const upcoming = docs.filter((d) => isWorkshopUpcoming(d.date ? new Date(d.date).toISOString() : null));
   // Set: titles written before the unique rule existed may still repeat.
   return [...new Set(upcoming.map((d) => workshopInterest(d.title)))];
+}
+
+/** One workshop for its register page, or null if it does not exist. Same shape as listWorkshops items. */
+export async function getWorkshopById(id: string) {
+  await connectToDatabase();
+  const d = await WorkshopModel.findById(id).select(LIST_FIELDS).lean();
+  if (!d) return null;
+  const count = await WorkshopRegistrationModel.countDocuments({ workshopId: d._id });
+  return {
+    id: String(d._id),
+    title: d.title,
+    description: d.description,
+    date: d.date ? new Date(d.date).toISOString() : null,
+    time: d.time ?? "",
+    location: d.location ?? "",
+    image: d.image,
+    registration: {
+      enabled: d.registration?.enabled ?? false,
+      capacity: d.registration?.capacity ?? null,
+      count,
+    },
+  };
 }
 
 /** Undated ("to be announced") workshops first, then newest date first. No limit returns all. */
@@ -65,6 +87,7 @@ export async function listWorkshops(limit = Infinity) {
     title: d.title,
     description: d.description,
     date: d.date ? new Date(d.date).toISOString() : null,
+    time: d.time ?? "",
     location: d.location ?? "",
     image: d.image,
     // Workshops saved before registration existed read as "closed, unlimited, none taken".

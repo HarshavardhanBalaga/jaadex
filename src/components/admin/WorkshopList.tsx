@@ -17,6 +17,7 @@ export type WorkshopListItem = {
   title: string;
   description: string;
   date: string | null; // ISO, null = to be announced
+  time: string; // "" = to be announced
   location: string; // "" = to be announced
   image: string; // data URL
   registration: { enabled: boolean; capacity: number | null; count: number }; // capacity null = unlimited

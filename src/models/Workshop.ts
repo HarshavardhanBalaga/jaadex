@@ -7,6 +7,8 @@ export interface WorkshopDoc extends Document {
   description: string;
   /** null = date to be announced. */
   date: Date | null;
+  /** Free text such as "10:00 AM – 1:00 PM". "" = time to be announced. */
+  time: string;
   /** "" = location to be announced. */
   location: string;
   /** Image stored as a data URL (uploaded file, capped at ~4 MB base64). */
@@ -24,6 +26,7 @@ const WorkshopSchema = new Schema<WorkshopDoc>(
     title: { type: String, required: true, trim: true, maxlength: 140 },
     description: { type: String, required: true, trim: true, maxlength: 3000 },
     date: { type: Date, default: null },
+    time: { type: String, default: "", trim: true, maxlength: 60 },
     location: { type: String, default: "", trim: true, maxlength: 200 },
     image: { type: String, required: true },
     registration: {

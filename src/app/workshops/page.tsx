@@ -7,9 +7,7 @@ import Image from "next/image";
 import { workshopInterest } from "@/lib/contact/validation";
 import { isWorkshopUpcoming, workshopWhenWhere } from "@/lib/workshops/format";
 import { listWorkshops } from "@/lib/workshops/queries";
-import { getCurrentUser } from "@/lib/user/session";
 import { WorkshopRegisterButton } from "@/components/workshops/WorkshopRegisterButton";
-import { registeredWorkshopIds } from "@/lib/workshops/registration-service";
 
 export const dynamic = "force-dynamic";
 
@@ -64,42 +62,32 @@ type CalendarWorkshop = {
   registration: { enabled: boolean; capacity: number | null; count: number };
 };
 
-type SignedInUser = { name: string; email: string } | null;
-
 /* eslint-disable @next/next/no-img-element */
-function CalendarWorkshopCard({ workshop, user, alreadyRegistered }: { workshop: CalendarWorkshop; user: SignedInUser; alreadyRegistered: boolean }) {
+function CalendarWorkshopCard({ workshop }: { workshop: CalendarWorkshop }) {
   const { registration } = workshop;
   const registrationOpen = !workshop.completed && registration.enabled;
-  const seatsLeft = registration.capacity === null ? null : Math.max(0, registration.capacity - registration.count);
   return (
     <article className="relative flex flex-col overflow-hidden rounded-[25px] border border-line bg-paper shadow-[0_8px_22px_rgb(20_60_160/0.05)]">
       <div className="relative h-52 overflow-hidden">
         {/* Data-URL image: plain img (next/image does not accept data: URLs). */}
         <img src={workshop.image} alt={workshop.title} className="h-full w-full object-cover" />
         <span
-          className={`absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-black tracking-[1px] text-white uppercase ${
+          className={`absolute top-3 right-3 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-white ${
             workshop.completed ? "bg-[#34a334]" : "bg-royal"
           }`}
         >
-          <span className="size-1.5 rounded-full bg-white" aria-hidden="true" /> {workshop.completed ? "Completed" : "Upcoming"}
+          <span className="size-1 rounded-full bg-white" aria-hidden="true" /> {workshop.completed ? "Completed" : "Upcoming"}
         </span>
       </div>
       <div className="flex flex-1 flex-col p-6 md:p-7">
-        <h3 className="font-display text-[clamp(22px,2.5vw,28px)] leading-[1.1] font-black tracking-[-1px] text-navy">{workshop.title}</h3>
+        <h3 className="font-display text-[clamp(22px,2.5vw,28px)] leading-[1.1] font-black tracking-[-1px] text-royal-dark">{workshop.title}</h3>
         <p className="mt-2 text-[13px] font-bold text-royal">{workshopWhenWhere(workshop.date, workshop.location)}</p>
-        <p className="mt-3 text-[14px] leading-[1.7] text-muted">{workshop.description}</p>
+        <p className="mt-3 line-clamp-4 text-[14px] leading-[1.7] text-muted">{workshop.description}</p>
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          {registrationOpen && (
-            <WorkshopRegisterButton workshopId={workshop.id} workshopTitle={workshop.title} seatsLeft={seatsLeft} user={user} alreadyRegistered={alreadyRegistered} />
-          )}
+          {registrationOpen && <WorkshopRegisterButton workshopId={workshop.id} />}
           {/* Upcoming workshops are enquiry topics, so preselect this one on the form. */}
           <ButtonLink href={workshop.completed ? "/contact" : `/contact?interest=${encodeURIComponent(workshopInterest(workshop.title))}`} variant={registrationOpen ? "light" : "dark"}>Ask about this workshop ↗</ButtonLink>
         </div>
-        {registrationOpen && seatsLeft !== null && seatsLeft > 0 && (
-          <p className="mt-3 text-[12px] font-bold text-orange-dark">
-            {seatsLeft} seat{seatsLeft === 1 ? "" : "s"} left
-          </p>
-        )}
       </div>
     </article>
   );
@@ -120,11 +108,7 @@ async function loadCalendarWorkshops(): Promise<CalendarWorkshop[]> {
 }
 
 export default async function WorkshopsPage() {
-  const [calendarWorkshops, currentUser] = await Promise.all([loadCalendarWorkshops(), getCurrentUser().catch(() => null)]);
-  // Only what the register form prefills; the API re-checks the session on submit.
-  const user: SignedInUser = currentUser ? { name: currentUser.name, email: currentUser.email } : null;
-  // DB hiccup → no "already registered" state; the API still refuses a duplicate on submit.
-  const registeredIds = currentUser ? await registeredWorkshopIds(currentUser).catch(() => new Set<string>()) : new Set<string>();
+  const calendarWorkshops = await loadCalendarWorkshops();
   // The featured (completed) Amaravati workshop always renders, so include it in the count.
   const listedCount = calendarWorkshops.length + 1;
   return (
@@ -199,7 +183,7 @@ export default async function WorkshopsPage() {
               </div>
             </article>
             {calendarWorkshops.map((workshop) => (
-              <CalendarWorkshopCard key={workshop.id} workshop={workshop} user={user} alreadyRegistered={registeredIds.has(workshop.id)} />
+              <CalendarWorkshopCard key={workshop.id} workshop={workshop} />
             ))}
             {calendarWorkshops.length === 0 && (
               <article className="relative flex flex-col overflow-hidden rounded-[25px] border border-dashed border-line bg-paper/60">

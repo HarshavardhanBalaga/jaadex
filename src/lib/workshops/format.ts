@@ -1,5 +1,5 @@
 /** Workshop display text shared by server + client. A blank date or location means "to be announced". */
-function formatWorkshopDate(iso: string): string {
+export function formatWorkshopDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
 }
 
