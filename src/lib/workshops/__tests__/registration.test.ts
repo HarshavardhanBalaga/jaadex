@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { registrationSchema, registrationSettingsSchema } from "../registration-validation.ts";
+import { escapeRegex, registrationListQuerySchema, registrationSchema, registrationSettingsSchema } from "../registration-validation.ts";
 import { buildRegistrationsCsv, registrationsCsvFilename } from "../registration-csv.ts";
 import { buildRegistrationConfirmationEmail, buildWorkshopUpdateEmail } from "../registration-email.ts";
 import { workshopEmailSchema } from "../workshop-email-validation.ts";
@@ -200,6 +200,52 @@ describe("email attachments", () => {
     assert.match(service, /MAX_TOTAL_ATTACHMENT_BYTES/);
     assert.match(src("src/models/WorkshopEmailAttachment.ts"), /expireAfterSeconds: 24 \* 60 \* 60, partialFilterExpression: \{ linked: false \}/);
     assert.match(src("src/lib/workshops/registration-service.ts"), /WorkshopEmailAttachmentModel\.deleteMany\(\{ workshopId \}\)/);
+  });
+});
+
+describe("admin registrations list: filtering, sorting, pagination", () => {
+  it("applies defaults and coerces query-string numbers", () => {
+    assert.deepEqual(registrationListQuerySchema.parse({}), { page: 1, limit: 10, q: "", email: "all", sort: "createdAt", order: "desc" });
+    const parsed = registrationListQuerySchema.parse({ page: "3", limit: "25", q: "  priya ", email: "failed", sort: "name", order: "asc" });
+    assert.deepEqual(parsed, { page: 3, limit: 25, q: "priya", email: "failed", sort: "name", order: "asc" });
+  });
+
+  it("rejects bad or unknown parameters", () => {
+    for (const bad of [
+      { page: "0" },
+      { page: "abc" },
+      { page: "1.5" },
+      { limit: "7" },
+      { limit: "1000" },
+      { sort: "password" },
+      { order: "up" },
+      { email: "everything" },
+      { q: "x".repeat(101) },
+      { skip: "10" },
+    ]) {
+      assert.equal(registrationListQuerySchema.safeParse(bad).success, false, JSON.stringify(bad));
+    }
+  });
+
+  it("escapes search text so it is matched literally", () => {
+    const pattern = new RegExp(escapeRegex("a.b*(c)"), "i");
+    assert.equal(pattern.test("A.B*(C)"), true);
+    assert.equal(pattern.test("axbbbc"), false);
+    assert.equal(new RegExp(escapeRegex(".*")).test("anything"), false);
+  });
+
+  it("GET validates the query, stays admin-only, and pages in Mongo", () => {
+    const route = src("src/app/api/workshops/[id]/registrations/route.ts");
+    const get = route.slice(route.indexOf("export async function GET"));
+    assert.match(get, /requireAdminFromToken\(access\)/);
+    assert.match(get, /registrationListQuerySchema\.safeParse\(Object\.fromEntries\(new URL\(request\.url\)\.searchParams\)\)/);
+    assert.match(get, /pagination/);
+    const service = src("src/lib/workshops/registration-service.ts");
+    assert.match(service, /new RegExp\(escapeRegex\(query\.q\), "i"\)/);
+    assert.match(service, /\.sort\(\{ \[query\.sort\]: dir, _id: dir \}\)/);
+    assert.match(service, /\.skip\(\(query\.page - 1\) \* query\.limit\)/);
+    assert.match(service, /countDocuments\(filter\)/);
+    assert.match(service, /totalPages, hasNextPage: query\.page < totalPages|hasNextPage: query\.page < totalPages/);
   });
 });
 

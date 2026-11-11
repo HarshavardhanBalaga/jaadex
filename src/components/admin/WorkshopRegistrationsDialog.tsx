@@ -7,7 +7,13 @@ import { Icon } from "@/components/Icon";
 import { Modal } from "@/components/admin/Modal";
 import { WorkshopEmailComposer } from "@/components/admin/WorkshopEmailComposer";
 import type { WorkshopListItem } from "@/components/admin/WorkshopList";
-import { fieldErrorsOf, MAX_CAPACITY, registrationSettingsSchema } from "@/lib/workshops/registration-validation";
+import {
+  fieldErrorsOf,
+  MAX_CAPACITY,
+  REGISTRATION_PAGE_LIMITS,
+  registrationSettingsSchema,
+  type RegistrationListQuery,
+} from "@/lib/workshops/registration-validation";
 import { formatBytes } from "@/lib/workshops/attachment-rules";
 
 type EmailStatus = "pending" | "sent" | "failed" | "skipped";
@@ -27,6 +33,17 @@ type SentEmail = {
 
 /** How often the history refreshes while an email is still going out. */
 const POLL_MS = 3000;
+const SEARCH_DEBOUNCE_MS = 300;
+
+type Pagination = { page: number; limit: number; total: number; totalPages: number; hasNextPage: boolean; hasPrevPage: boolean };
+
+const EMAIL_FILTER_OPTIONS: { value: RegistrationListQuery["email"]; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "sent", label: "Sent" },
+  { value: "failed", label: "Failed" },
+  { value: "not_sent", label: "Not sent" },
+  { value: "pending", label: "Sending" },
+];
 
 async function fetchSentEmails(workshopId: string): Promise<SentEmail[]> {
   const res = await authFetch(`/api/workshops/${workshopId}/emails`);
@@ -50,6 +67,33 @@ type Registration = {
 /** Failed, never sent (no SMTP) and untracked emails can be resent; sent and in-flight ones can't. */
 function canResend(status: EmailStatus | null): boolean {
   return status === null || status === "failed" || status === "skipped";
+}
+
+/** Column header that sorts the list on the server; clicking again flips the order. */
+function SortableHeader({
+  label,
+  field,
+  query,
+  onSort,
+}: {
+  label: string;
+  field: RegistrationListQuery["sort"];
+  query: RegistrationListQuery;
+  onSort: (field: RegistrationListQuery["sort"]) => void;
+}) {
+  const active = query.sort === field;
+  return (
+    <th className="px-4 py-2.5" aria-sort={active ? (query.order === "asc" ? "ascending" : "descending") : "none"}>
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className={`inline-flex cursor-pointer items-center gap-1 tracking-[0.5px] uppercase hover:text-royal ${active ? "text-navy" : ""}`}
+      >
+        {label}
+        <span aria-hidden="true">{active ? (query.order === "asc" ? "↑" : "↓") : "↕"}</span>
+      </button>
+    </th>
+  );
 }
 
 /** Delivery status of one email, used for confirmations and admin-written emails alike. */
@@ -114,6 +158,11 @@ export function WorkshopRegistrationsDialog({
   const id = useId();
   const [rows, setRows] = useState<Registration[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [query, setQuery] = useState<RegistrationListQuery>({ page: 1, limit: 10, q: "", email: "all", sort: "createdAt", order: "desc" });
+  const [search, setSearch] = useState("");
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  /** The query the table currently shows; differs from `query` while the next page loads. */
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [capacity, setCapacity] = useState(workshop.registration.capacity === null ? "" : String(workshop.registration.capacity));
   const [capacityError, setCapacityError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -195,22 +244,65 @@ export function WorkshopRegistrationsDialog({
     }
   }
 
+  // Search waits until typing pauses, then starts again from page 1.
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setQuery((current) => (current.q === search.trim() ? current : { ...current, q: search.trim(), page: 1 }));
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const queryKey = JSON.stringify(query);
+  useEffect(() => {
+    // Only the latest request may update the table: an older, slower response is dropped.
     let cancelled = false;
     (async () => {
       try {
-        const res = await authFetch(`/api/workshops/${workshop.id}/registrations`);
-        const json = (await res.json().catch(() => null)) as { registrations?: Registration[]; error?: { message?: string } } | null;
-        if (!res.ok || !json?.registrations) throw new Error(json?.error?.message ?? "Could not load registrations. Try again.");
-        if (!cancelled) setRows(json.registrations);
+        const params = new URLSearchParams({
+          page: String(query.page),
+          limit: String(query.limit),
+          q: query.q,
+          email: query.email,
+          sort: query.sort,
+          order: query.order,
+        });
+        const res = await authFetch(`/api/workshops/${workshop.id}/registrations?${params}`);
+        const json = (await res.json().catch(() => null)) as {
+          registrations?: Registration[];
+          pagination?: Pagination;
+          error?: { message?: string };
+        } | null;
+        if (!res.ok || !json?.registrations || !json.pagination) throw new Error(json?.error?.message ?? "Could not load registrations. Try again.");
+        if (cancelled) return;
+        setRows(json.registrations);
+        setPagination(json.pagination);
+        setLoadError(null);
+        setLoadedKey(queryKey);
       } catch (err) {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Could not load registrations. Try again.");
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "Could not load registrations. Try again.");
+        setLoadedKey(queryKey);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [workshop.id]);
+  }, [workshop.id, queryKey, query.page, query.limit, query.q, query.email, query.sort, query.order]);
+
+  /** Change filters, sort or page size: always back to page 1. */
+  function updateQuery(patch: Partial<Omit<RegistrationListQuery, "page">>) {
+    setQuery((current) => ({ ...current, ...patch, page: 1 }));
+  }
+
+  function toggleSort(field: RegistrationListQuery["sort"]) {
+    setQuery((current) => ({
+      ...current,
+      sort: field,
+      // Same column flips the order; a new column starts with the most useful direction.
+      order: current.sort === field ? (current.order === "asc" ? "desc" : "asc") : field === "name" ? "asc" : "desc",
+      page: 1,
+    }));
+  }
 
   async function saveCapacity(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -306,6 +398,9 @@ export function WorkshopRegistrationsDialog({
   }
 
   const { count } = workshop.registration;
+  // Previous rows stay on screen (dimmed) while the next page loads.
+  const pageLoading = rows !== null && loadedKey !== queryKey;
+  const allOnPageSelected = rows !== null && rows.length > 0 && rows.every((r) => selected.has(r.id));
 
   return (
     <Modal labelledBy={`${id}-heading`} busy={busy} dismissOnBackdrop className="max-w-[874px]" onClose={onClose}>
@@ -377,7 +472,7 @@ export function WorkshopRegistrationsDialog({
               <button
                 type="button"
                 onClick={() => setComposing(true)}
-                disabled={!rows || rows.length === 0}
+                disabled={count === 0 && selected.size === 0}
                 aria-haspopup="dialog"
                 className={royalButton}
               >
@@ -400,6 +495,35 @@ export function WorkshopRegistrationsDialog({
               {resendError}
             </p>
           )}
+          {count > 0 && (
+            <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
+              <label className="relative min-w-[200px] flex-1">
+                <span className="sr-only">Search registrations</span>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  maxLength={100}
+                  placeholder="Search name, email or phone"
+                  className={field}
+                />
+              </label>
+              <label className="flex items-center gap-2 text-[13px] font-semibold text-navy">
+                Confirmation
+                <select
+                  value={query.email}
+                  onChange={(e) => updateQuery({ email: e.target.value as RegistrationListQuery["email"] })}
+                  className={`${field} w-auto py-2`}
+                >
+                  {EMAIL_FILTER_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
           {loadError ? (
             <p role="alert" className="px-4 py-6 text-center text-[13px] text-[#c1440e]">
               {loadError}
@@ -409,28 +533,39 @@ export function WorkshopRegistrationsDialog({
               <Icon name="loader" size={16} className="inline-block animate-spin" /> Loading registrations…
             </p>
           ) : rows.length === 0 ? (
-            <p className="px-4 py-6 text-center text-[13px] text-muted">No registrations yet.</p>
+            <p className="px-4 py-6 text-center text-[13px] text-muted">
+              {query.q || query.email !== "all" ? "No registrations match these filters." : "No registrations yet."}
+            </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className={`overflow-x-auto transition-opacity ${pageLoading ? "opacity-60" : ""}`} aria-busy={pageLoading}>
               <table className="w-full min-w-[720px] text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-line text-[11px] font-semibold tracking-[0.5px] text-muted uppercase">
                     <th className="w-10 py-2.5 pl-4">
                       <input
                         type="checkbox"
-                        aria-label="Select all registrants"
-                        checked={selected.size > 0 && selected.size === rows.length}
+                        aria-label="Select all registrants on this page"
+                        checked={allOnPageSelected}
                         ref={(el) => {
-                          if (el) el.indeterminate = selected.size > 0 && selected.size < rows.length;
+                          if (el) el.indeterminate = !allOnPageSelected && rows.some((r) => selected.has(r.id));
                         }}
-                        onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())}
+                        onChange={(e) =>
+                          setSelected((current) => {
+                            const next = new Set(current);
+                            for (const r of rows) {
+                              if (e.target.checked) next.add(r.id);
+                              else next.delete(r.id);
+                            }
+                            return next;
+                          })
+                        }
                         className="size-4 cursor-pointer accent-royal"
                       />
                     </th>
-                    <th className="px-4 py-2.5">Name</th>
+                    <SortableHeader label="Name" field="name" query={query} onSort={toggleSort} />
                     <th className="px-4 py-2.5">Phone</th>
                     <th className="px-4 py-2.5">Email</th>
-                    <th className="px-4 py-2.5">Registered</th>
+                    <SortableHeader label="Registered" field="createdAt" query={query} onSort={toggleSort} />
                     <th className="px-4 py-2.5">Confirmation</th>
                   </tr>
                 </thead>
@@ -475,6 +610,51 @@ export function WorkshopRegistrationsDialog({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {pagination && pagination.total > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-3 text-[13px] text-muted">
+              <p role="status">
+                Showing {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+                {pagination.total}
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2">
+                  Rows per page
+                  <select
+                    value={query.limit}
+                    onChange={(e) => updateQuery({ limit: Number(e.target.value) })}
+                    className={`${field} w-auto py-1.5`}
+                  >
+                    {REGISTRATION_PAGE_LIMITS.filter((n) => n <= 50).map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span>
+                  Page {pagination.page} of {pagination.totalPages}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setQuery((current) => ({ ...current, page: current.page - 1 }))}
+                    disabled={!pagination.hasPrevPage || pageLoading}
+                    className={secondaryButton}
+                  >
+                    ← Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuery((current) => ({ ...current, page: current.page + 1 }))}
+                    disabled={!pagination.hasNextPage || pageLoading}
+                    className={secondaryButton}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </section>
@@ -564,7 +744,7 @@ export function WorkshopRegistrationsDialog({
           workshopId={workshop.id}
           workshopTitle={workshop.title}
           selectedIds={[...selected]}
-          totalRegistrants={rows.length}
+          totalRegistrants={count}
           onClose={() => setComposing(false)}
           onSent={(recipientCount) => {
             setComposing(false);

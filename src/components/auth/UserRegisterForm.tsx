@@ -16,10 +16,14 @@ function errMsg(data: Record<string, unknown>, fallback: string): string {
   return fallback;
 }
 
-/** Two steps: details -> emailed code. Verifying the code also signs the user in. `next` is pre-sanitized. */
-export function UserRegisterForm({ next }: { next: string }) {
+/**
+ * Two steps: details -> emailed code. Verifying the code also signs the user in. `next` is pre-sanitized.
+ * `noAccount`: arrived from login with an unknown email; the notice shows only until the code is sent.
+ */
+export function UserRegisterForm({ next, noAccount = false }: { next: string; noAccount?: boolean }) {
   const router = useRouter();
   const [step, setStep] = useState<"details" | "otp">("details");
+  const [showNoAccount, setShowNoAccount] = useState(noAccount);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -62,6 +66,7 @@ export function UserRegisterForm({ next }: { next: string }) {
       setInfo(resend
         ? `A new code is on its way to ${parsed.data.email}. Only the newest code works.`
         : `We sent a verification code to ${parsed.data.email}. Enter it below.`);
+      setShowNoAccount(false);
       setStep("otp");
     } finally {
       setBusy(false);
@@ -127,6 +132,11 @@ export function UserRegisterForm({ next }: { next: string }) {
   return (
     // method="post" blocks native GET serialization of email/password into the URL.
     <form onSubmit={submitDetails} method="post" action="/api/auth/register" className="grid gap-3.5">
+      {showNoAccount ? (
+        <p role="status" className="rounded-xl bg-[#e3ecff] px-3 py-2.5 text-[13px] font-bold text-royal">
+          We couldn&apos;t find an account for that email. Create one below to continue.
+        </p>
+      ) : null}
       <div className="grid gap-1.5">
         <label htmlFor="user-reg-name" className="text-xs font-black text-[#2b3b78]">Full name *</label>
         <input id="user-reg-name" type="text" required autoComplete="name" maxLength={80} value={name}

@@ -7,7 +7,12 @@ import { Types } from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
 import { isWorkshopUpcoming } from "@/lib/workshops/format";
 import { isDuplicateKeyError } from "@/lib/workshops/queries";
-import type { RegistrationInput, RegistrationSettings } from "@/lib/workshops/registration-validation";
+import {
+  escapeRegex,
+  type RegistrationInput,
+  type RegistrationListQuery,
+  type RegistrationSettings,
+} from "@/lib/workshops/registration-validation";
 import type { CurrentUser } from "@/lib/user/session";
 import { WorkshopModel } from "@/models/Workshop";
 import { WorkshopRegistrationModel, type ConfirmationEmailStatus } from "@/models/WorkshopRegistration";
@@ -249,14 +254,19 @@ export async function updateRegistrationSettings(workshopId: string, settings: R
   };
 }
 
-/** Newest first. Used by the admin list and the CSV export. */
-export async function listRegistrations(workshopId: string) {
-  await connectToDatabase();
-  const docs = await WorkshopRegistrationModel.find({ workshopId })
-    .select({ name: 1, phone: 1, email: 1, createdAt: 1, confirmationEmail: 1 })
-    .sort({ createdAt: -1 })
-    .lean();
-  return docs.map((d) => ({
+const ROW_FIELDS = { name: 1, phone: 1, email: 1, createdAt: 1, confirmationEmail: 1 } as const;
+
+type RegistrationRowDoc = {
+  _id: Types.ObjectId;
+  name: string;
+  phone: string;
+  email: string;
+  createdAt: Date;
+  confirmationEmail?: { status?: ConfirmationEmailStatus; sentAt?: Date | null; lastError?: string | null; attempts?: number };
+};
+
+function toRow(d: RegistrationRowDoc) {
+  return {
     id: String(d._id),
     name: d.name,
     phone: d.phone,
@@ -267,7 +277,60 @@ export async function listRegistrations(workshopId: string) {
     emailSentAt: d.confirmationEmail?.sentAt ? new Date(d.confirmationEmail.sentAt) : null,
     emailError: d.confirmationEmail?.lastError ?? null,
     emailAttempts: d.confirmationEmail?.attempts ?? 0,
-  }));
+  };
+}
+
+/** All registrations, newest first. Used by the CSV export. */
+export async function listRegistrations(workshopId: string) {
+  await connectToDatabase();
+  const docs = await WorkshopRegistrationModel.find({ workshopId }).select(ROW_FIELDS).sort({ createdAt: -1 }).lean<RegistrationRowDoc[]>();
+  return docs.map(toRow);
+}
+
+/** Confirmation-email filter → Mongo condition. "not_sent" includes rows from before email tracking. */
+const EMAIL_FILTERS: Record<Exclude<RegistrationListQuery["email"], "all">, Record<string, unknown>> = {
+  sent: { "confirmationEmail.status": "sent" },
+  failed: { "confirmationEmail.status": "failed" },
+  pending: { "confirmationEmail.status": "pending" },
+  not_sent: { $or: [{ "confirmationEmail.status": "skipped" }, { "confirmationEmail.status": { $exists: false } }] },
+};
+
+/**
+ * Admin list: search, email-status filter, whitelisted sort and pagination, all in Mongo.
+ * The _id tie-breaker keeps the order stable, so rows never repeat or go missing between pages.
+ */
+export async function queryRegistrations(workshopId: string, query: RegistrationListQuery) {
+  await connectToDatabase();
+  const and: Record<string, unknown>[] = [{ workshopId: new Types.ObjectId(workshopId) }];
+  if (query.q) {
+    const contains = new RegExp(escapeRegex(query.q), "i");
+    and.push({ $or: [{ name: contains }, { email: contains }, { phone: contains }] });
+  }
+  if (query.email !== "all") and.push(EMAIL_FILTERS[query.email]);
+  const filter = and.length === 1 ? and[0] : { $and: and };
+  const dir = query.order === "asc" ? 1 : -1;
+
+  const find = WorkshopRegistrationModel.find(filter)
+    .select(ROW_FIELDS)
+    .sort({ [query.sort]: dir, _id: dir })
+    .skip((query.page - 1) * query.limit)
+    .limit(query.limit);
+  // Case-insensitive name order ("anil" next to "Anil").
+  if (query.sort === "name") find.collation({ locale: "en", strength: 2 });
+
+  const [docs, total] = await Promise.all([find.lean<RegistrationRowDoc[]>(), WorkshopRegistrationModel.countDocuments(filter)]);
+  const totalPages = Math.max(1, Math.ceil(total / query.limit));
+  return {
+    registrations: docs.map(toRow),
+    pagination: {
+      page: query.page,
+      limit: query.limit,
+      total,
+      totalPages,
+      hasNextPage: query.page < totalPages,
+      hasPrevPage: query.page > 1,
+    },
+  };
 }
 
 /** Workshops this user holds a seat in: by account, or by their account email used from another account. */
