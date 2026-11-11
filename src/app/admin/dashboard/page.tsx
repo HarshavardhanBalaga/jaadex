@@ -11,6 +11,7 @@ import { AdminLogoutButton } from "@/components/admin/AdminLogoutButton";
 import { Icon } from "@/components/Icon";
 import { AdminDashboardShell, type AdminSection } from "@/components/admin/AdminDashboardShell";
 import { WorkshopList, type WorkshopListItem } from "@/components/admin/WorkshopList";
+import { WorkshopRegistrationsView } from "@/components/admin/WorkshopRegistrationsView";
 import { interests, workshopInterest } from "@/lib/contact/validation";
 
 export const metadata: Metadata = { title: "Admin Dashboard", description: "JaaDeX admin dashboard." };
@@ -27,9 +28,9 @@ function fmt(value: Date | string | null): string {
 
 /** Each stat gets a brand-colored icon chip. */
 const accentStyles = {
-  royal: { chip: "bg-[#e9efff] text-royal" },
-  orange: { chip: "bg-[#fff0e6] text-orange-dark" },
-  green: { chip: "bg-[#e8f6e8] text-green" },
+  royal: { chip: "bg-royal/10 text-royal" },
+  orange: { chip: "bg-orange/10 text-orange-dark" },
+  green: { chip: "bg-green/10 text-green" },
 } as const;
 
 function StatCard({
@@ -49,20 +50,22 @@ function StatCard({
 }) {
   const style = accentStyles[accent];
   const body = (
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <p className="text-[12px] font-semibold text-navy">{label}</p>
-        <p className="mt-1 font-display text-[28px] leading-none font-bold text-navy">{value}</p>
-        <p className="mt-1.5 text-[12px] text-ink">{hint}</p>
+    <>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold tracking-[1.2px] text-muted uppercase">{label}</p>
+          <p className="mt-3 font-display text-[34px] leading-none font-bold tabular-nums text-navy">{value}</p>
+          <p className="mt-2.5 text-[12px] text-muted">{hint}</p>
+        </div>
+        <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${style.chip}`}>
+          <Icon name={icon} size={20} />
+        </span>
       </div>
-      <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${style.chip}`}>
-        <Icon name={icon} size={20} />
-      </span>
-    </div>
+    </>
   );
-  const frame = "rounded-2xl border border-line bg-white p-5 shadow-soft";
+  const frame = "relative overflow-hidden rounded-2xl border border-line bg-white p-6 shadow-card";
   return href ? (
-    <a href={href} className={`${frame} block transition-colors hover:border-royal/50`}>
+    <a href={href} className={`${frame} block transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-card-hover`}>
       {body}
     </a>
   ) : (
@@ -72,11 +75,11 @@ function StatCard({
 
 function Card({ title, subtitle, children, action }: { title: string; subtitle?: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-[#f5f8ff] px-5 py-4">
+    <section className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-3.5">
         <div>
-          <h3 className="font-display text-[16px] font-bold text-navy">{title}</h3>
-          {subtitle && <p className="mt-0.5 text-[12px] text-muted">{subtitle}</p>}
+          <h3 className="font-display text-[17px] font-bold text-navy">{title}</h3>
+          {subtitle && <p className="mt-1 text-[13px] text-muted">{subtitle}</p>}
         </div>
         {action}
       </div>
@@ -87,9 +90,6 @@ function Card({ title, subtitle, children, action }: { title: string; subtitle?:
 
 /** Server-protected: proxy redirect is UX only; this check is the boundary. */
 export default async function AdminDashboardPage() {
-  let email = "";
-  let role = "";
-  let lastLoginAt: Date | null = null;
   let verifiedAt: Date | null = null;
   // Allowlisted login tracking: who holds an account + when each last logged in.
   let allAdmins: Array<{ name: string; email: string; role: string; status: string; lastLoginAt: Date | null; createdAt: Date | null }> = [];
@@ -104,9 +104,6 @@ export default async function AdminDashboardPage() {
     const store = await cookies();
     const checked = await requireAdminFromToken(store.get(c.accessCookieName)?.value ?? null);
     if (!checked.ok) redirect("/admin/login");
-    email = checked.ctx.admin.email;
-    role = checked.ctx.admin.role;
-    lastLoginAt = checked.ctx.admin.lastLoginAt ? new Date(checked.ctx.admin.lastLoginAt) : null;
     verifiedAt = checked.ctx.admin.emailVerifiedAt ? new Date(checked.ctx.admin.emailVerifiedAt) : null;
     const docs = await AdminModel.find({})
       .select({ name: 1, email: 1, role: 1, status: 1, lastLoginAt: 1, createdAt: 1 })
@@ -161,7 +158,7 @@ export default async function AdminDashboardPage() {
       label: "Overview",
       icon: "dashboard",
       content: (
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Overview">
+        <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-label="Overview">
           <StatCard
             label="New enquiries"
             value={String(newRequests)}
@@ -197,21 +194,21 @@ export default async function AdminDashboardPage() {
         <Card title="Contact and demo form" subtitle="Submissions by the “I'm interested in” topic.">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] text-left text-[13px]">
-              <thead className="bg-[#f5f8ff]">
-                <tr className="border-b border-line text-[11px] font-semibold tracking-[0.5px] text-muted uppercase">
-                  <th className="px-5 py-3">Topic</th>
-                  <th className="px-5 py-3">Total</th>
-                  <th className="px-5 py-3">New</th>
+              <thead className="bg-canvas">
+                <tr className="border-b border-line text-[11px] font-bold tracking-[1.2px] text-muted uppercase">
+                  <th className="px-6 py-3.5">Topic</th>
+                  <th className="px-6 py-3.5">Total</th>
+                  <th className="px-6 py-3.5">New</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {topics.map((topic) => {
                   const count = topicCounts.get(topic) ?? { total: 0, newCount: 0 };
                   return (
-                    <tr key={topic}>
-                      <td className="px-5 py-3 text-navy">{topic}</td>
-                      <td className="px-5 py-3 text-muted">{count.total}</td>
-                      <td className="px-5 py-3 font-semibold text-navy">{count.newCount}</td>
+                    <tr key={topic} className="transition-colors hover:bg-canvas/60">
+                      <td className="px-6 py-3.5 text-navy">{topic}</td>
+                      <td className="px-6 py-3.5 text-muted">{count.total}</td>
+                      <td className="px-6 py-3.5 font-semibold text-navy">{count.newCount}</td>
                     </tr>
                   );
                 })}
@@ -232,33 +229,36 @@ export default async function AdminDashboardPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-[13px]">
-                <thead className="bg-[#f5f8ff]">
-                  <tr className="border-b border-line text-[11px] font-semibold tracking-[0.5px] text-muted uppercase">
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Name</th>
-                    <th className="px-5 py-3">Email</th>
-                    <th className="px-5 py-3">Organization</th>
-                    <th className="px-5 py-3">Interest</th>
-                    <th className="px-5 py-3">Message</th>
-                    <th className="px-5 py-3">Received</th>
+                <thead className="bg-canvas">
+                  <tr className="border-b border-line text-[11px] font-bold tracking-[1.2px] text-muted uppercase">
+                    <th className="px-6 py-3.5">Status</th>
+                    <th className="px-6 py-3.5">Name</th>
+                    <th className="px-6 py-3.5">Email</th>
+                    <th className="px-6 py-3.5">Organization</th>
+                    <th className="px-6 py-3.5">Interest</th>
+                    <th className="px-6 py-3.5">Message</th>
+                    <th className="px-6 py-3.5">Received</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
                   {requests.map((r, i) => (
-                    <tr key={`${r.email}-${r.createdAt?.toISOString() ?? i}`}>
-                      <td className="px-5 py-3 whitespace-nowrap">
+                    <tr key={`${r.email}-${r.createdAt?.toISOString() ?? i}`} className="transition-colors hover:bg-canvas/60">
+                      <td className="px-6 py-3.5 whitespace-nowrap">
                         {r.status === "new" ? (
-                          <span className="rounded-full bg-[#fff0e6] px-2.5 py-0.5 text-[12px] font-semibold text-orange-dark">New</span>
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange/10 px-2.5 py-1 text-[12px] font-semibold text-orange-dark">
+                <span aria-hidden="true" className="size-1.5 rounded-full bg-orange" />
+                New
+              </span>
                         ) : (
                           <span className="text-muted">{r.status}</span>
                         )}
                       </td>
-                      <td className="px-5 py-3 text-navy break-all">{r.name}</td>
-                      <td className="px-5 py-3 text-muted break-all">{r.email}</td>
-                      <td className="px-5 py-3 text-muted break-all">{r.organization}</td>
-                      <td className="px-5 py-3 text-muted break-all">{r.interest}</td>
-                      <td className="max-w-[320px] px-5 py-3 text-muted wrap-break-word">{r.message}</td>
-                      <td className="px-5 py-3 whitespace-nowrap text-muted">{fmt(r.createdAt)}</td>
+                      <td className="px-6 py-3.5 text-navy break-all">{r.name}</td>
+                      <td className="px-6 py-3.5 text-muted break-all">{r.email}</td>
+                      <td className="px-6 py-3.5 text-muted break-all">{r.organization}</td>
+                      <td className="px-6 py-3.5 text-muted break-all">{r.interest}</td>
+                      <td className="max-w-[320px] px-6 py-3.5 text-muted wrap-break-word">{r.message}</td>
+                      <td className="px-6 py-3.5 whitespace-nowrap text-muted">{fmt(r.createdAt)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -273,10 +273,17 @@ export default async function AdminDashboardPage() {
       label: "Workshops",
       icon: "calendar",
       content: (
-        <Card title="Published workshops" subtitle="Currently on the calendar.">
+        <Card title="Published workshops">
           <WorkshopList workshops={workshops} />
         </Card>
       ),
+    },
+    {
+      id: "registrations",
+      label: "Registrations",
+      icon: "check",
+      children: workshops.map((w) => ({ id: `registrations/${w.id}`, label: w.title })),
+      content: <WorkshopRegistrationsView workshops={workshops} />,
     },
     {
       id: "administrators",
@@ -286,25 +293,25 @@ export default async function AdminDashboardPage() {
         <Card title="Administrators" subtitle="Accounts and recent logins.">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-[13px]">
-              <thead className="bg-[#f5f8ff]">
-                <tr className="border-b border-line text-[11px] font-semibold tracking-[0.5px] text-muted uppercase">
-                  <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">Email</th>
-                  <th className="px-5 py-3">Role</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Last login</th>
-                  <th className="px-5 py-3">Registered</th>
+              <thead className="bg-canvas">
+                <tr className="border-b border-line text-[11px] font-bold tracking-[1.2px] text-muted uppercase">
+                  <th className="px-6 py-3.5">Name</th>
+                  <th className="px-6 py-3.5">Email</th>
+                  <th className="px-6 py-3.5">Role</th>
+                  <th className="px-6 py-3.5">Status</th>
+                  <th className="px-6 py-3.5">Last login</th>
+                  <th className="px-6 py-3.5">Registered</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {allAdmins.map((a) => (
-                  <tr key={a.email}>
-                    <td className="px-5 py-3 text-navy break-all">{a.name}</td>
-                    <td className="px-5 py-3 text-navy break-all">{a.email}</td>
-                    <td className="px-5 py-3 text-muted">{a.role}</td>
-                    <td className="px-5 py-3 text-muted">{a.status}</td>
-                    <td className="px-5 py-3 text-muted">{fmt(a.lastLoginAt)}</td>
-                    <td className="px-5 py-3 text-muted">{fmt(a.createdAt)}</td>
+                  <tr key={a.email} className="transition-colors hover:bg-canvas/60">
+                    <td className="px-6 py-3.5 text-navy break-all">{a.name}</td>
+                    <td className="px-6 py-3.5 text-navy break-all">{a.email}</td>
+                    <td className="px-6 py-3.5 text-muted">{a.role}</td>
+                    <td className="px-6 py-3.5 text-muted">{a.status}</td>
+                    <td className="px-6 py-3.5 text-muted">{fmt(a.lastLoginAt)}</td>
+                    <td className="px-6 py-3.5 text-muted">{fmt(a.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -319,15 +326,11 @@ export default async function AdminDashboardPage() {
     <AdminDashboardShell
       header={
         <header className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="font-display text-[26px] leading-none font-bold tracking-[-0.5px] text-navy md:text-[30px]">
-              Dashboard
-            </h1>
-            <p className="mt-2 text-[13px] text-muted">
-              {email} · {role} · last login {fmt(lastLoginAt)}
-            </p>
+          <div className="min-w-0">
+            <h1 className="font-display text-[24px] leading-none font-bold tracking-[-0.3px] text-navy md:text-[28px]">Dashboard</h1>
             {!verifiedAt && (
-              <p className="mt-2 text-[12px] font-semibold text-[#c1440e]">
+              <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-[#fff6e0] px-3 py-1 text-[12px] font-semibold text-[#8a5a00]">
+                <span aria-hidden="true" className="size-1.5 rounded-full bg-gold" />
                 Email not verified — verify it to keep this account secure.
               </p>
             )}

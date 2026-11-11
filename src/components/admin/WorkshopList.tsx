@@ -16,12 +16,21 @@ export type WorkshopListItem = {
   title: string;
   description: string;
   date: string | null; // ISO, null = to be announced
+  time: string; // "" = to be announced
   location: string; // "" = to be announced
   image: string; // data URL
+  registration: { enabled: boolean; capacity: number | null; count: number }; // capacity null = unlimited
 };
 
-const rowButton =
-  "inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12px] font-medium text-muted transition-colors";
+function registrationSummary({ enabled, capacity, count }: WorkshopListItem["registration"]): string {
+  const seats = capacity === null ? `${count} registered` : `${count} / ${capacity} seats`;
+  if (!enabled) return count > 0 ? `Registration off · ${seats}` : "Registration off";
+  return capacity !== null && count >= capacity ? `Registration full · ${seats}` : `Registration open · ${seats}`;
+}
+
+const rowButtonBase =
+  "inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold shadow-[0_1px_2px_rgb(7_7_79/0.05)] transition-colors";
+const rowButton = `${rowButtonBase} border-line bg-white text-muted`;
 
 /** Dashboard list of published workshops: add, remove, and edit for upcoming ones. Server data, client actions. */
 export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
@@ -31,6 +40,8 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<{ id: string; message: string } | null>(null);
   const [isRefreshing, startRefresh] = useTransition();
   const dismissToast = useCallback(() => setToast(null), []);
   const deleteBusy = deleting || isRefreshing;
@@ -60,9 +71,34 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
     }
   }
 
+  async function toggleRegistration(w: WorkshopListItem) {
+    if (togglingId) return;
+    const enabled = !w.registration.enabled;
+    setTogglingId(w.id);
+    setToggleError(null);
+    try {
+      const csrf = await getCsrfToken();
+      const res = await authFetch(`/api/workshops/${w.id}/registration`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ enabled, capacity: w.registration.capacity }),
+      });
+      const json = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+      if (!res.ok) throw new Error(json?.error?.message ?? "Could not change registration. Try again.");
+      startRefresh(() => {
+        router.refresh();
+        setToast(enabled ? `Registration opened for “${w.title}”.` : `Registration closed for “${w.title}”.`);
+      });
+    } catch (err) {
+      setToggleError({ id: w.id, message: err instanceof Error ? err.message : "Something went wrong. Try again." });
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-white px-6 py-3">
         <p className="text-[13px] text-muted">
           {workshops.length} workshop{workshops.length === 1 ? "" : "s"}
         </p>
@@ -70,7 +106,7 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
           type="button"
           onClick={() => setFormTarget("new")}
           aria-haspopup="dialog"
-          className="inline-flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-royal px-4 text-[13px] font-semibold text-white transition-colors hover:bg-royal-dark"
+          className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-royal px-4 text-[13px] font-semibold text-white shadow-[0_6px_16px_-6px_rgb(20_80_214/0.6)] transition-colors hover:bg-royal-dark"
         >
           <Icon name="plus" size={18} />
           Add new workshop
@@ -78,27 +114,74 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
       </div>
 
       {workshops.length === 0 ? (
-        <p className="px-5 py-8 text-center text-[13px] text-muted">No workshops published yet. Click “Add new workshop” to publish your first one.</p>
+        <p className="px-6 py-12 text-center text-[13px] text-muted">No workshops published yet. Click “Add new workshop” to publish your first one.</p>
       ) : (
-        <div className="divide-y divide-line">
+        <div className="flex flex-col gap-4 p-4 sm:p-5">
           {workshops.map((w) => (
-            <div key={w.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4 sm:flex-nowrap">
+            <div
+              key={w.id}
+              className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-line bg-gradient-to-br from-white to-[#f3f7ff] px-5 py-4 shadow-[0_1px_2px_rgb(7_7_79/0.04),0_8px_24px_-10px_rgb(7_7_79/0.14)] sm:flex-nowrap"
+            >
               <div className="flex min-w-0 flex-1 basis-full items-center gap-4 sm:basis-0">
-                {/* Data-URL image: plain img (next/image does not accept data: URLs). */}
-                <img src={w.image} alt="" className="h-14 w-20 shrink-0 rounded-lg border border-line object-cover" />
+                {/* Data-URL image: plain img (next/image does not accept data: URLs). Landscape 16:9 with a white frame. */}
+                <img
+                  src={w.image}
+                  alt=""
+                  className="aspect-video w-44 shrink-0 rounded-lg border-4 border-white object-cover shadow-[0_4px_12px_-4px_rgb(7_7_79/0.25)]"
+                />
                 <div className="min-w-0 flex-1">
                   <h4 className="truncate text-[14px] font-semibold text-navy">{w.title}</h4>
                   <p className="mt-0.5 text-[12px] text-muted">{workshopWhenWhere(w.date, w.location)}</p>
+                  <p className={`mt-0.5 text-[12px] font-medium ${w.registration.enabled ? "text-green" : "text-muted"}`}>
+                    {registrationSummary(w.registration)}
+                  </p>
+                  {toggleError?.id === w.id && (
+                    <p role="alert" className="mt-0.5 text-[12px] font-medium text-[#c1440e]">
+                      {toggleError.message}
+                    </p>
+                  )}
                 </div>
               </div>
-              <div className="ml-auto flex shrink-0 items-center gap-2">
+              <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
+                {/* Opening needs an upcoming workshop; an open one can always be closed. */}
+                {(isWorkshopUpcoming(w.date) || w.registration.enabled) && (
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-[12px] font-medium text-muted has-disabled:cursor-wait">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={w.registration.enabled}
+                      aria-label={`Registration for ${w.title}`}
+                      disabled={togglingId !== null || isRefreshing}
+                      onClick={() => void toggleRegistration(w)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:cursor-wait disabled:opacity-60 ${
+                        w.registration.enabled ? "bg-green" : "bg-[#c5cee6]"
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`size-5 rounded-full bg-white shadow transition-transform motion-reduce:transition-none ${
+                          w.registration.enabled ? "translate-x-[22px]" : "translate-x-0.5"
+                        }`}
+                      />
+                    </button>
+                    Register now
+                  </label>
+                )}
+                <a
+                  href={`#registrations/${w.id}`}
+                  aria-label={`Registrations for ${w.title}`}
+                  className={`${rowButton} hover:border-royal/40 hover:text-royal`}
+                >
+                  <Icon name="users" size={14} />
+                  Registrations ({w.registration.count})
+                </a>
                 {isWorkshopUpcoming(w.date) && (
                   <button
                     type="button"
                     onClick={() => setFormTarget(w)}
                     aria-haspopup="dialog"
                     aria-label={`Edit ${w.title}`}
-                    className={`${rowButton} hover:border-royal/40 hover:text-royal`}
+                    className={`${rowButtonBase} border-royal/30 bg-royal/10 text-royal hover:bg-royal hover:text-white`}
                   >
                     <Icon name="pencil" size={14} />
                     Edit
@@ -112,7 +195,7 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
                   }}
                   aria-haspopup="dialog"
                   aria-label={`Remove ${w.title}`}
-                  className={`${rowButton} hover:border-[#c1440e]/40 hover:bg-[#fdece4] hover:text-[#c1440e]`}
+                  className={`${rowButtonBase} border-[#c1440e]/30 bg-[#fdece4] text-[#c1440e] hover:bg-[#c1440e] hover:text-white`}
                 >
                   <Icon name="trash" size={14} />
                   Remove
@@ -138,7 +221,11 @@ export function WorkshopList({ workshops }: { workshops: WorkshopListItem[] }) {
       {deleteTarget && (
         <ConfirmDialog
           title="Remove this workshop?"
-          description="It will disappear from the public Workshops page. This can’t be undone."
+          description={
+            deleteTarget.registration.count > 0
+              ? `It will disappear from the public Workshops page, and its ${deleteTarget.registration.count} registration${deleteTarget.registration.count === 1 ? "" : "s"} will be deleted. This can’t be undone.`
+              : "It will disappear from the public Workshops page. This can’t be undone."
+          }
           confirmLabel="Remove workshop"
           busyLabel="Removing…"
           busy={deleteBusy}

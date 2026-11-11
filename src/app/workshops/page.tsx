@@ -7,6 +7,7 @@ import Image from "next/image";
 import { workshopInterest } from "@/lib/contact/validation";
 import { isWorkshopUpcoming, workshopWhenWhere } from "@/lib/workshops/format";
 import { listWorkshops } from "@/lib/workshops/queries";
+import { WorkshopRegisterButton } from "@/components/workshops/WorkshopRegisterButton";
 
 export const dynamic = "force-dynamic";
 
@@ -58,30 +59,38 @@ type CalendarWorkshop = {
   location: string;
   image: string;
   completed: boolean;
+  registration: { enabled: boolean; capacity: number | null; count: number };
 };
 
 /* eslint-disable @next/next/no-img-element */
 function CalendarWorkshopCard({ workshop }: { workshop: CalendarWorkshop }) {
+  const { registration } = workshop;
+  const registrationOpen = !workshop.completed && registration.enabled;
   return (
-    <article className="relative flex flex-col overflow-hidden rounded-[25px] border border-line bg-paper shadow-[0_8px_22px_rgb(20_60_160/0.05)]">
-      <div className="relative h-52 overflow-hidden">
-        {/* Data-URL image: plain img (next/image does not accept data: URLs). */}
-        <img src={workshop.image} alt={workshop.title} className="h-full w-full object-cover" />
+    <article className="grid overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-[#dce7ff] via-[#f5f8ff] to-[#ffe3cc] shadow-[0_1px_2px_rgb(7_7_79/0.04),0_8px_24px_-10px_rgb(7_7_79/0.14)] md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <div className="relative flex items-center justify-center p-5 md:p-6">
+        {/* Data-URL image: plain img (next/image does not accept data: URLs). Landscape 16:9 frame with a white border. */}
+        <img
+          src={workshop.image}
+          alt={workshop.title}
+          className="aspect-video w-full rounded-2xl border-4 border-white object-cover shadow-[0_4px_12px_-4px_rgb(7_7_79/0.25)]"
+        />
         <span
-          className={`absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-black tracking-[1px] text-white uppercase ${
+          className={`absolute top-9 left-9 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold tracking-[0.4px] text-white ${
             workshop.completed ? "bg-[#34a334]" : "bg-royal"
           }`}
         >
           <span className="size-1.5 rounded-full bg-white" aria-hidden="true" /> {workshop.completed ? "Completed" : "Upcoming"}
         </span>
       </div>
-      <div className="flex flex-1 flex-col p-6 md:p-7">
-        <h3 className="font-display text-[clamp(22px,2.5vw,28px)] leading-[1.1] font-black tracking-[-1px] text-navy">{workshop.title}</h3>
+      <div className="flex flex-col justify-center bg-gradient-to-br from-[#dce7ff] via-[#f5f8ff] to-[#ffe3cc] p-6 md:p-8">
+        <h3 className="font-display text-[22px] leading-[1.2] font-black tracking-[-0.5px] text-navy md:text-[24px]">{workshop.title}</h3>
         <p className="mt-2 text-[13px] font-bold text-royal">{workshopWhenWhere(workshop.date, workshop.location)}</p>
-        <p className="mt-3 text-[14px] leading-[1.7] text-muted">{workshop.description}</p>
-        <div className="mt-5">
+        <p className="mt-3 line-clamp-3 text-[14px] leading-[1.7] text-muted">{workshop.description}</p>
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          {registrationOpen && <WorkshopRegisterButton workshopId={workshop.id} />}
           {/* Upcoming workshops are enquiry topics, so preselect this one on the form. */}
-          <ButtonLink href={workshop.completed ? "/contact" : `/contact?interest=${encodeURIComponent(workshopInterest(workshop.title))}`} variant="dark">Ask about this workshop ↗</ButtonLink>
+          <ButtonLink href={workshop.completed ? "/contact" : `/contact?interest=${encodeURIComponent(workshopInterest(workshop.title))}`} variant={registrationOpen ? "light" : "dark"}>Ask about this workshop ↗</ButtonLink>
         </div>
       </div>
     </article>
@@ -104,8 +113,7 @@ async function loadCalendarWorkshops(): Promise<CalendarWorkshop[]> {
 
 export default async function WorkshopsPage() {
   const calendarWorkshops = await loadCalendarWorkshops();
-  // The featured (completed) Amaravati workshop always renders, so include it in the count.
-  const listedCount = calendarWorkshops.length + 1;
+  const listedCount = calendarWorkshops.length;
   return (
     <>
       {/* Hero */}
@@ -129,19 +137,7 @@ export default async function WorkshopsPage() {
 
     
 
-      {/* Workshop categories — first 3 themes */}
-      <Section>
-        <Container>
-          <SectionHeading eyebrow="Workshop Themes" title="What our workshops cover." description="Five focus areas adapted to the audience, time available, venue, and learning objectives." />
-          <div className="grid grid-cols-1 gap-[17px] md:grid-cols-3">
-            <PhotoCard src="/assets/workshop-education.jpg" alt="Students learning with creative technology in a classroom" title="Education Workshops" description="Creative technology and digital learning programs." />
-            <PhotoCard src="/assets/workshop-animation.jpg" alt="Hands-on drawing and animation activity" title="Animation Workshops" description="Hands-on animation and storytelling experiences." />
-            <PhotoCard src="/assets/workshop-collab.jpg" alt="Team collaborating on an innovation challenge" title="Innovation Events" description="Hackathons, idea challenges, and creative problem-solving activities." />
-          </div>
-        </Container>
-      </Section>
-
-      {/* Workshops list — right after the first two sections */}
+      {/* Workshops list — first section after the hero */}
       <Section>
         <Container>
           <div id="workshops" className="scroll-mt-24">
@@ -153,30 +149,7 @@ export default async function WorkshopsPage() {
               }
             />
           </div>
-          <div className="mx-auto grid max-w-[960px] grid-cols-1 gap-[17px] md:grid-cols-2">
-            {/* Featured (completed) workshop — always rendered so it stays visible
-                even after new workshops are published from the admin dashboard. */}
-            <article className="relative flex flex-col overflow-hidden rounded-[25px] border border-line bg-paper shadow-[0_8px_22px_rgb(20_60_160/0.05)]">
-              <div className="relative h-52 overflow-hidden">
-                <Image src="/assets/DSC02220.JPG" alt="Amaravati Creative Economy Workshop gathering" fill className="object-cover" sizes="(max-width: 768px) 100vw, 480px" />
-                <span className="absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full bg-[#34a334] px-3.5 py-1.5 text-[11px] font-black tracking-[1px] text-white uppercase">
-                  <span className="size-1.5 rounded-full bg-white" aria-hidden="true" /> Completed
-                </span>
-              </div>
-              <div className="flex flex-1 flex-col p-6 md:p-7">
-                <div className="text-xs font-black tracking-[1.4px] text-orange uppercase">Featured Workshop</div>
-                <h3 className="my-2 font-display text-[clamp(22px,2.5vw,28px)] leading-[1.1] font-black tracking-[-1px] text-navy">Amaravati Creative Economy Workshop</h3>
-                <p className="text-[13px] font-bold text-royal">25 September 2026 · RTIH, Mangalagiri, Andhra Pradesh</p>
-                <p className="mt-3 text-[14px] leading-[1.7] text-muted">
-                  A platform bringing together young creators, innovators, storytellers,
-                  artists, entrepreneurs, and technology enthusiasts to explore new
-                  opportunities in the creative economy.
-                </p>
-                <div className="mt-5">
-                  <ButtonLink href="/contact" variant="dark">Ask about this workshop ↗</ButtonLink>
-                </div>
-              </div>
-            </article>
+          <div className="mx-auto grid max-w-[1040px] grid-cols-1 gap-5">
             {calendarWorkshops.map((workshop) => (
               <CalendarWorkshopCard key={workshop.id} workshop={workshop} />
             ))}
@@ -189,6 +162,49 @@ export default async function WorkshopsPage() {
                 </div>
               </article>
             )}
+          </div>
+        </Container>
+      </Section>
+
+      {/* Workshop categories — first 3 themes */}
+      <Section>
+        <Container>
+          <SectionHeading eyebrow="Workshop Themes" title="What our workshops cover." description="Five focus areas adapted to the audience, time available, venue, and learning objectives." />
+          <div className="grid grid-cols-1 gap-[17px] md:grid-cols-3">
+            <PhotoCard src="/assets/workshop-education.jpg" alt="Students learning with creative technology in a classroom" title="Education Workshops" description="Creative technology and digital learning programs." />
+            <PhotoCard src="/assets/workshop-animation.jpg" alt="Hands-on drawing and animation activity" title="Animation Workshops" description="Hands-on animation and storytelling experiences." />
+            <PhotoCard src="/assets/workshop-collab.jpg" alt="Team collaborating on an innovation challenge" title="Innovation Events" description="Hackathons, idea challenges, and creative problem-solving activities." />
+          </div>
+        </Container>
+      </Section>
+
+      {/* Featured completed workshop — split layout like the projects page: image left, content right. */}
+      <Section>
+        <Container className="grid items-center gap-[25px] md:grid-cols-[1.1fr_.9fr] md:gap-[54px]">
+          <div className="relative overflow-hidden rounded-[32px] border border-line shadow-soft">
+            <Image
+              src="/assets/amaravati-workshop.jpeg"
+              alt="Amaravati Creative Economy Workshop gathering"
+              width={1028}
+              height={597}
+              className="h-auto w-full"
+              sizes="(min-width: 768px) 55vw, 100vw"
+            />
+            <span className="absolute top-[22px] left-5 z-2 inline-flex items-center gap-1.5 rounded-[15px] bg-[#34a334] px-3.5 py-2.5 text-xs font-black text-white">
+              <span className="size-1.5 rounded-full bg-white" aria-hidden="true" /> Completed
+            </span>
+          </div>
+          <div>
+            <div className="text-xs font-black tracking-[1.4px] text-orange uppercase">Featured Workshop</div>
+            <h2 className="my-3 font-display text-[clamp(31px,4vw,45px)] leading-[1.08] font-black tracking-[-1.7px] text-navy">Amaravati Creative Economy Workshop</h2>
+            <p className="text-[13px] font-bold text-royal">25 September 2026 · RTIH, Mangalagiri, Andhra Pradesh</p>
+            <p className="mt-4 text-[15px] leading-[1.75] text-muted">
+              A platform bringing together young creators, innovators, storytellers, artists, entrepreneurs, and technology enthusiasts to explore new
+              opportunities in the creative economy.
+            </p>
+            <div className="mt-6">
+              <ButtonLink href="/contact" variant="dark">Ask about this workshop ↗</ButtonLink>
+            </div>
           </div>
         </Container>
       </Section>

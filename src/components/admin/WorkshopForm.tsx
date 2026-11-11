@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useId, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { getCsrfToken, authFetch } from "@/lib/admin-client/auth-fetch";
 import { Icon } from "@/components/Icon";
@@ -11,6 +11,7 @@ import { Modal } from "@/components/admin/Modal";
 import type { WorkshopListItem } from "@/components/admin/WorkshopList";
 
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // 3 MB source file ≈ 4 MB base64.
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const DESCRIPTION_MAX = 3000;
 
 const field =
@@ -50,6 +51,8 @@ export function WorkshopForm({
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const imageInput = useRef<HTMLInputElement>(null);
   const [isRefreshing, startRefresh] = useTransition();
   const saving = busy || isRefreshing;
 
@@ -59,15 +62,22 @@ export function WorkshopForm({
     else onClose();
   }
 
-  function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  /** Shared by the file picker and drag-and-drop: the input stays the single source the form submits. */
+  function applyImageFile(input: HTMLInputElement) {
+    const file = input.files?.[0];
     setError(null);
     if (!file) {
       setPreview(workshop?.image ?? null);
       return;
     }
+    if (!IMAGE_TYPES.includes(file.type)) {
+      input.value = "";
+      setPreview(workshop?.image ?? null);
+      setError("Please use a PNG, JPG, WEBP or GIF image.");
+      return;
+    }
     if (file.size > MAX_IMAGE_BYTES) {
-      e.target.value = "";
+      input.value = "";
       setPreview(workshop?.image ?? null);
       setError("Image is too large — please choose one under 3 MB.");
       return;
@@ -75,6 +85,21 @@ export function WorkshopForm({
     const reader = new FileReader();
     reader.onload = () => setPreview(typeof reader.result === "string" ? reader.result : null);
     reader.readAsDataURL(file);
+  }
+
+  function onDropImage(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    setDragging(false);
+    const input = imageInput.current;
+    if (saving || !input) return;
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    // Put the dropped file into the input, exactly as if it had been picked.
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    setDirty(true);
+    applyImageFile(input);
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -101,6 +126,7 @@ export function WorkshopForm({
         title: String(data.get("title") ?? "").trim(),
         description: String(data.get("description") ?? "").trim(),
         date: String(data.get("date") ?? "").trim(),
+        time: String(data.get("time") ?? "").trim(),
         location: String(data.get("location") ?? "").trim(),
         ...(dataUrl ? { image: dataUrl } : {}),
       };
@@ -159,17 +185,35 @@ export function WorkshopForm({
                 </p>
                 <label
                   htmlFor={`${id}-image`}
-                  className="relative block cursor-pointer overflow-hidden rounded-2xl border-2 border-dashed border-[#8d9bc4] bg-[#f5f8ff] transition-colors hover:border-royal focus-within:border-royal focus-within:ring-4 focus-within:ring-royal/15"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = saving ? "none" : "copy";
+                    if (!saving) setDragging(true);
+                  }}
+                  onDragLeave={(e) => {
+                    // Ignore leaving into a child element (the preview image or caption).
+                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+                  }}
+                  onDrop={onDropImage}
+                  className={`relative block cursor-pointer overflow-hidden rounded-2xl border-2 border-dashed transition-colors hover:border-royal focus-within:border-royal focus-within:ring-4 focus-within:ring-royal/15 ${
+                    dragging ? "border-royal bg-[#e9efff] ring-4 ring-royal/15" : "border-[#8d9bc4] bg-[#f5f8ff]"
+                  }`}
                 >
                   <input
+                    ref={imageInput}
                     id={`${id}-image`}
                     name="image"
                     type="file"
                     required={!workshop}
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    onChange={onPickImage}
+                    accept={IMAGE_TYPES.join(",")}
+                    onChange={(e) => applyImageFile(e.currentTarget)}
                     className="sr-only"
                   />
+                  {dragging && (
+                    <span className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-royal/10 text-[14px] font-semibold text-royal">
+                      Drop the image here
+                    </span>
+                  )}
                   {preview ? (
                     <>
                       <img src={preview} alt="Workshop image preview" className="h-52 w-full object-cover" />
@@ -182,7 +226,8 @@ export function WorkshopForm({
                       <span className="grid size-11 place-items-center rounded-xl bg-white text-royal shadow-soft">
                         <Icon name="image" size={22} />
                       </span>
-                      <span className="text-[14px] font-semibold text-navy">Choose an image</span>
+                      <span className="text-[14px] font-semibold text-navy">Drag and drop an image, or click to choose</span>
+                      <span className="text-[12px] text-muted">PNG, JPG, WEBP or GIF · up to 3 MB</span>
                     </span>
                   )}
                 </label>
@@ -221,12 +266,18 @@ export function WorkshopForm({
               </div>
 
               <div className="grid gap-2">
-                <div className="grid gap-5 sm:grid-cols-2">
+                <div className="grid gap-5 sm:grid-cols-3">
                   <div className="grid gap-2">
                     <label className={label} htmlFor={`${id}-date`}>
                       Date (optional)
                     </label>
                     <input id={`${id}-date`} name="date" type="date" defaultValue={workshop?.date?.slice(0, 10)} className={field} />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className={label} htmlFor={`${id}-time`}>
+                      Time (optional)
+                    </label>
+                    <input id={`${id}-time`} name="time" type="text" maxLength={60} defaultValue={workshop?.time} placeholder="e.g. 10:00 AM – 1:00 PM" className={field} />
                   </div>
                   <div className="grid gap-2">
                     <label className={label} htmlFor={`${id}-location`}>
@@ -235,7 +286,7 @@ export function WorkshopForm({
                     <input id={`${id}-location`} name="location" type="text" maxLength={200} defaultValue={workshop?.location} placeholder="e.g. RTIH, Mangalagiri" className={field} />
                   </div>
                 </div>
-                <p className="text-[12px] text-muted">Not confirmed yet? Leave the date or location blank, and the website will show “To be announced”.</p>
+                <p className="text-[12px] text-muted">Not confirmed yet? Leave the date, time or location blank, and the website will show “To be announced”.</p>
               </div>
             </div>
 
