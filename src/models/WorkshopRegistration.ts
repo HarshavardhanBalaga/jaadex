@@ -53,6 +53,8 @@ WorkshopRegistrationSchema.index({ workshopId: 1, userId: 1 }, { unique: true })
 WorkshopRegistrationSchema.index({ workshopId: 1, email: 1 }, { unique: true });
 WorkshopRegistrationSchema.index({ workshopId: 1, phone: 1 }, { unique: true });
 WorkshopRegistrationSchema.index({ workshopId: 1, createdAt: -1 });
+// Admin list sorted by name (case-insensitive, matching the query's collation).
+WorkshopRegistrationSchema.index({ workshopId: 1, name: 1 }, { collation: { locale: "en", strength: 2 } });
 
 // Dev hot reload keeps mongoose.models alive: drop the old model so schema edits apply without a restart.
 if (process.env.NODE_ENV === "development" && mongoose.models.WorkshopRegistration) mongoose.deleteModel("WorkshopRegistration");

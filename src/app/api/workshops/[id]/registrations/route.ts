@@ -4,8 +4,8 @@ import { getCurrentUser } from "@/lib/user/session";
 import { requireAdminFromToken } from "@/lib/admin/auth";
 import { readAuthCookies } from "@/lib/admin/cookies";
 import { checkRateLimit } from "@/lib/admin/rate-limit";
-import { fieldErrorsOf, registrationSchema } from "@/lib/workshops/registration-validation";
-import { listRegistrations, registerForWorkshop, sendRegistrationConfirmation } from "@/lib/workshops/registration-service";
+import { fieldErrorsOf, registrationListQuerySchema, registrationSchema } from "@/lib/workshops/registration-validation";
+import { queryRegistrations, registerForWorkshop, sendRegistrationConfirmation } from "@/lib/workshops/registration-service";
 
 export const dynamic = "force-dynamic";
 
@@ -79,17 +79,31 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   }
 }
 
-/** Admin-only: everyone registered for this workshop, newest first. */
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+/**
+ * Admin-only: one page of this workshop's registrations.
+ * Query: page, limit (10/25/50/100), q (name/email/phone), email (confirmation status), sort (createdAt|name), order (asc|desc).
+ */
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { access } = await readAuthCookies();
   const checked = await requireAdminFromToken(access);
   if (!checked.ok) return fail(checked.code, "Not authorised.", checked.status);
   const { id } = await context.params;
   if (!isValidObjectId(id)) return fail("invalid_request", "Invalid workshop id.", 400);
-  try {
-    const registrations = await listRegistrations(id);
+  const parsed = registrationListQuerySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
+  if (!parsed.success) {
     return NextResponse.json(
-      { success: true, registrations: registrations.map((r) => ({ ...r, createdAt: r.createdAt.toISOString(), emailSentAt: r.emailSentAt?.toISOString() ?? null })) },
+      { success: false, error: { code: "validation_error", message: "Invalid list parameters.", fields: fieldErrorsOf(parsed.error) } },
+      { status: 400, headers: NO_STORE },
+    );
+  }
+  try {
+    const { registrations, pagination } = await queryRegistrations(id, parsed.data);
+    return NextResponse.json(
+      {
+        success: true,
+        registrations: registrations.map((r) => ({ ...r, createdAt: r.createdAt.toISOString(), emailSentAt: r.emailSentAt?.toISOString() ?? null })),
+        pagination,
+      },
       { headers: NO_STORE },
     );
   } catch (err) {

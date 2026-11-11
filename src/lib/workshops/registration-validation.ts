@@ -31,6 +31,31 @@ export const registrationSettingsSchema = z
 
 export type RegistrationSettings = z.infer<typeof registrationSettingsSchema>;
 
+/** Rows-per-page choices for the admin registrations list. */
+export const REGISTRATION_PAGE_LIMITS = [10, 25, 50, 100] as const;
+
+/** Admin list query (GET /api/workshops/[id]/registrations). Query-string values arrive as strings. */
+export const registrationListQuerySchema = z
+  .object({
+    page: z.coerce.number("Page must be a number.").int().min(1, "Page starts at 1.").default(1),
+    limit: z.coerce
+      .number("Limit must be a number.")
+      .refine((n) => (REGISTRATION_PAGE_LIMITS as readonly number[]).includes(n), `Limit must be one of ${REGISTRATION_PAGE_LIMITS.join(", ")}.`)
+      .default(10),
+    q: z.string().trim().max(100, "Keep the search under 100 characters.").default(""),
+    email: z.enum(["all", "sent", "failed", "not_sent", "pending"], "Unknown email status filter.").default("all"),
+    sort: z.enum(["createdAt", "name"], "Unknown sort field.").default("createdAt"),
+    order: z.enum(["asc", "desc"], "Order must be asc or desc.").default("desc"),
+  })
+  .strict();
+
+export type RegistrationListQuery = z.infer<typeof registrationListQuerySchema>;
+
+/** Treat user text as a literal inside a RegExp (no wildcards, no expensive patterns). */
+export function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** Validation failures as { field: [messages] }, the same shape the API returns. */
 export function fieldErrorsOf(error: z.ZodError): Record<string, string[]> {
   return z.flattenError(error).fieldErrors as Record<string, string[]>;
