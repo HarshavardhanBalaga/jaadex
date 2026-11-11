@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { registrationSchema, registrationSettingsSchema } from "../registration-validation.ts";
 import { buildRegistrationsCsv, registrationsCsvFilename } from "../registration-csv.ts";
+import { buildRegistrationConfirmationEmail } from "../registration-email.ts";
 
 const root = process.cwd();
 const src = (p: string): string => readFileSync(join(root, p), "utf8");
@@ -54,24 +55,52 @@ describe("workshop registration CSV", () => {
   const createdAt = new Date("2026-11-11T10:00:00.000Z");
 
   it("adds a BOM, a header and quoted cells", () => {
-    const csv = buildRegistrationsCsv([{ name: 'Ravi "RK" Kumar', phone: "+919876543210", email: "ravi@example.com", createdAt }]);
+    const csv = buildRegistrationsCsv([
+      { name: 'Ravi "RK" Kumar', phone: "+919876543210", email: "ravi@example.com", createdAt, emailStatus: "sent" },
+      { name: "Old Row", phone: "9876543210", email: "old@example.com", createdAt, emailStatus: null },
+    ]);
     assert.ok(csv.startsWith("﻿"));
-    const [header, row] = csv.slice(1).split("\r\n");
-    assert.equal(header, '"Name","Phone","Email","Registered at (UTC)"');
-    assert.equal(row, '"Ravi ""RK"" Kumar","+919876543210","ravi@example.com","2026-11-11T10:00:00.000Z"');
+    const [header, row, oldRow] = csv.slice(1).split("\r\n");
+    assert.equal(header, '"Name","Phone","Email","Registered at (UTC)","Confirmation email"');
+    assert.equal(row, '"Ravi ""RK"" Kumar","+919876543210","ravi@example.com","2026-11-11T10:00:00.000Z","sent"');
+    assert.match(oldRow, /,"not sent"$/);
   });
 
   it("neutralises spreadsheet formulas", () => {
-    const csv = buildRegistrationsCsv([{ name: "=HYPERLINK(\"http://evil\")", phone: "9876543210", email: "@x.com", createdAt }]);
+    const csv = buildRegistrationsCsv([{ name: "=HYPERLINK(\"http://evil\")", phone: "9876543210", email: "@x.com", createdAt, emailStatus: "failed" }]);
     assert.match(csv, /"'=HYPERLINK/);
     assert.match(csv, /"'@x\.com"/);
     assert.match(csv, /"9876543210"/);
-    assert.match(buildRegistrationsCsv([{ name: "-1+1", phone: "+1", email: "a@b.c", createdAt }]), /"'-1\+1","\+1"/);
+    assert.match(buildRegistrationsCsv([{ name: "-1+1", phone: "+1", email: "a@b.c", createdAt, emailStatus: "skipped" }]), /"'-1\+1","\+1"/);
   });
 
   it("builds a header-safe filename", () => {
     assert.equal(registrationsCsvFilename("AI Film & Animation: Bootcamp!"), "ai-film-animation-bootcamp-registrations.csv");
     assert.equal(registrationsCsvFilename("చిత్రం"), "workshop-registrations.csv");
+  });
+});
+
+describe("workshop registration confirmation email", () => {
+  const base = { name: "Priya Sharma", workshopTitle: "AI Filmmaking", date: "2026-12-05T00:00:00.000Z", location: "RTIH, Mangalagiri", workshopsUrl: "https://jaadex.example/workshops" };
+
+  it("confirms the registration with the workshop details", () => {
+    const { subject, text } = buildRegistrationConfirmationEmail(base);
+    assert.equal(subject, "You're registered: AI Filmmaking");
+    assert.match(text, /^Hi Priya Sharma,/);
+    assert.match(text, /registering for "AI Filmmaking"/);
+    assert.match(text, /When & where: 5 December 2026 · RTIH, Mangalagiri/);
+    assert.match(text, /https:\/\/jaadex\.example\/workshops/);
+  });
+
+  it("says 'to be announced' for an undated workshop", () => {
+    const { text } = buildRegistrationConfirmationEmail({ ...base, date: null, location: "" });
+    assert.match(text, /When & where: Date and location to be announced/);
+  });
+
+  it("keeps line breaks out of the subject and greeting", () => {
+    const { subject, text } = buildRegistrationConfirmationEmail({ ...base, name: "Eve\r\nBcc: x@evil.com", workshopTitle: "AI\r\nBcc: y@evil.com" });
+    assert.doesNotMatch(subject, /[\r\n]/);
+    assert.match(text, /^Hi Eve Bcc: x@evil\.com,\n/);
   });
 });
 
@@ -109,6 +138,18 @@ describe("workshop registration authorization", () => {
     assert.match(service, /\$lt: \["\$registrationCount", "\$registration\.capacity"\]/);
     assert.match(service, /\$inc: \{ registrationCount: -1 \}/);
     assert.match(service, /isDuplicateKeyError\(err\)/);
+  });
+
+  it("confirmation email is sent after the response, tracked, and resendable by admins only", () => {
+    assert.match(userRoute, /after\(\(\) =>\s*sendRegistrationConfirmation\(registrationId\)/);
+    assert.match(src("src/models/WorkshopRegistration.ts"), /confirmationEmail: \{/);
+    assert.match(service, /"confirmationEmail\.attempts": 1/);
+    assert.match(service, /"confirmationEmail\.lastError"/);
+    assert.match(service, /"confirmationEmail\.status": \{ \$in: \["failed", "skipped"\] \}/);
+    assert.match(src("src/lib/admin/mailer.ts"), /from: c\.mailFrom, to, subject: email\.subject/);
+    const resend = src("src/app/api/workshops/[id]/registrations/[registrationId]/resend-email/route.ts");
+    assert.ok(resend.indexOf("validateCsrf(request)") < resend.indexOf("requireAdminFromToken(access)"));
+    assert.match(resend, /isValidObjectId\(registrationId\)/);
   });
 
   it("counts come from real registrations, and a stale counter heals itself", () => {

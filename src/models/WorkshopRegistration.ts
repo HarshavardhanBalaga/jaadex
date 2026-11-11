@@ -3,6 +3,18 @@ import mongoose, { Document, Model, Schema, Types } from "mongoose";
 
 export type WorkshopRegistrationStatus = "confirmed";
 
+/** skipped = SMTP not configured (local dev). Rows saved before email tracking have no value. */
+export type ConfirmationEmailStatus = "pending" | "sent" | "failed" | "skipped";
+
+export interface ConfirmationEmail {
+  status: ConfirmationEmailStatus;
+  attempts: number;
+  lastAttemptAt: Date | null;
+  sentAt: Date | null;
+  /** Short failure reason for admins. Never contains credentials. */
+  lastError: string | null;
+}
+
 export interface WorkshopRegistrationDoc extends Document {
   _id: Types.ObjectId;
   workshopId: Types.ObjectId;
@@ -11,6 +23,7 @@ export interface WorkshopRegistrationDoc extends Document {
   phone: string;
   email: string;
   status: WorkshopRegistrationStatus;
+  confirmationEmail?: ConfirmationEmail;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +36,13 @@ const WorkshopRegistrationSchema = new Schema<WorkshopRegistrationDoc>(
     phone: { type: String, required: true, trim: true, maxlength: 16 },
     email: { type: String, required: true, lowercase: true, trim: true, maxlength: 254 },
     status: { type: String, enum: ["confirmed"], required: true, default: "confirmed" },
+    confirmationEmail: {
+      status: { type: String, enum: ["pending", "sent", "failed", "skipped"] },
+      attempts: { type: Number, default: 0, min: 0 },
+      lastAttemptAt: { type: Date, default: null },
+      sentAt: { type: Date, default: null },
+      lastError: { type: String, default: null, maxlength: 300 },
+    },
   },
   { timestamps: true, collection: "workshop_registrations" },
 );

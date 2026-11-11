@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { isValidObjectId } from "mongoose";
 import { getCurrentUser } from "@/lib/user/session";
 import { requireAdminFromToken } from "@/lib/admin/auth";
 import { readAuthCookies } from "@/lib/admin/cookies";
 import { checkRateLimit } from "@/lib/admin/rate-limit";
 import { fieldErrorsOf, registrationSchema } from "@/lib/workshops/registration-validation";
-import { listRegistrations, registerForWorkshop } from "@/lib/workshops/registration-service";
+import { listRegistrations, registerForWorkshop, sendRegistrationConfirmation } from "@/lib/workshops/registration-service";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +64,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const [code, message, status] = REFUSED[result.reason];
       return fail(code, message, status);
     }
+    // Email after the response is sent: SMTP latency never slows the registrant, and a mail
+    // failure never undoes a saved registration. The outcome is recorded on the row for admins.
+    const { registrationId } = result;
+    after(() =>
+      sendRegistrationConfirmation(registrationId).catch((err) =>
+        console.error("[workshop-registration] confirmation email error:", err instanceof Error ? err.message : err),
+      ),
+    );
     return NextResponse.json({ success: true, message: "You're registered." }, { status: 201, headers: NO_STORE });
   } catch (err) {
     console.error("[workshop-registration] unavailable:", err instanceof Error ? err.message : err);
@@ -81,7 +89,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   try {
     const registrations = await listRegistrations(id);
     return NextResponse.json(
-      { success: true, registrations: registrations.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })) },
+      { success: true, registrations: registrations.map((r) => ({ ...r, createdAt: r.createdAt.toISOString(), emailSentAt: r.emailSentAt?.toISOString() ?? null })) },
       { headers: NO_STORE },
     );
   } catch (err) {

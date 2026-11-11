@@ -10,12 +10,15 @@ import { isDuplicateKeyError } from "@/lib/workshops/queries";
 import type { RegistrationInput, RegistrationSettings } from "@/lib/workshops/registration-validation";
 import type { CurrentUser } from "@/lib/user/session";
 import { WorkshopModel } from "@/models/Workshop";
-import { WorkshopRegistrationModel } from "@/models/WorkshopRegistration";
+import { WorkshopRegistrationModel, type ConfirmationEmailStatus } from "@/models/WorkshopRegistration";
+import { getAdminAuthConfig } from "@/lib/admin/auth-config";
+import { sendWorkshopRegistrationConfirmation } from "@/lib/admin/mailer";
+import { buildRegistrationConfirmationEmail } from "@/lib/workshops/registration-email";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type RegisterResult =
-  | { ok: true }
+  | { ok: true; registrationId: string }
   | { ok: false; reason: "not_found" | "closed" | "completed" | "full" | "already_registered" }
   /** Another account already registered with this email or phone. */
   | { ok: false; reason: "contact_taken"; field: "email" | "phone" };
@@ -106,22 +109,103 @@ export async function registerForWorkshop(workshopId: string, user: CurrentUser,
     return { ok: false, reason: "full" };
   }
 
+  let registrationId: string;
   try {
-    await WorkshopRegistrationModel.create({
+    const created = await WorkshopRegistrationModel.create({
       workshopId,
       userId,
       name: input.name,
       phone: input.phone,
       email: input.email,
       status: "confirmed",
+      // The route sends the confirmation after responding; until then it is pending.
+      confirmationEmail: { status: "pending", attempts: 0, lastAttemptAt: null, sentAt: null, lastError: null },
     });
+    registrationId = String(created._id);
   } catch (err) {
     await WorkshopModel.updateOne({ _id: workshopId }, { $inc: { registrationCount: -1 } });
     // A racing submit with the same account, email or phone: a unique index caught it.
     if (isDuplicateKeyError(err)) return duplicateFromKeyError(err);
     throw err;
   }
-  return { ok: true };
+  return { ok: true, registrationId };
+}
+
+/** Admin-facing failure reason: one line, capped, never more than the SMTP error message itself. */
+function emailErrorReason(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.replace(/\s+/g, " ").trim().slice(0, 300) || "Unknown error";
+}
+
+/**
+ * Send the confirmation email for one registration and record the outcome on it.
+ * Never throws for SMTP problems: a failed send is stored as "failed" for admins to resend.
+ */
+export async function sendRegistrationConfirmation(registrationId: string): Promise<ConfirmationEmailStatus | null> {
+  await connectToDatabase();
+  const reg = await WorkshopRegistrationModel.findById(registrationId).select({ workshopId: 1, name: 1, email: 1 }).lean();
+  if (!reg) return null;
+  const w = await WorkshopModel.findById(reg.workshopId).select({ title: 1, date: 1, location: 1 }).lean();
+  if (!w) return null;
+  const email = buildRegistrationConfirmationEmail({
+    name: reg.name,
+    workshopTitle: w.title,
+    date: w.date ? new Date(w.date).toISOString() : null,
+    location: w.location ?? "",
+    workshopsUrl: `${getAdminAuthConfig().appUrl}/workshops`,
+  });
+  const now = new Date();
+  let set: Record<string, unknown>;
+  try {
+    const result = await sendWorkshopRegistrationConfirmation(reg.email, email);
+    set = result === "sent"
+      ? { "confirmationEmail.status": "sent", "confirmationEmail.sentAt": now, "confirmationEmail.lastError": null }
+      : { "confirmationEmail.status": "skipped", "confirmationEmail.lastError": "Email is not configured on the server (SMTP)." };
+  } catch (err) {
+    set = { "confirmationEmail.status": "failed", "confirmationEmail.lastError": emailErrorReason(err) };
+  }
+  await WorkshopRegistrationModel.updateOne(
+    { _id: registrationId },
+    { $set: { ...set, "confirmationEmail.lastAttemptAt": now }, $inc: { "confirmationEmail.attempts": 1 } },
+  );
+  return set["confirmationEmail.status"] as ConfirmationEmailStatus;
+}
+
+/** A pending email older than this is treated as stuck (the process stopped mid-send). */
+const STUCK_PENDING_MS = 10 * 60 * 1000;
+
+export type ResendResult =
+  | { ok: true; status: ConfirmationEmailStatus }
+  | { ok: false; reason: "not_found" | "already_sent_or_in_progress" };
+
+/**
+ * Admin resend. The atomic claim (status → pending) only succeeds for failed, skipped,
+ * untracked (older rows) or stuck emails, so a double-click can't send twice and a
+ * delivered confirmation can't be re-sent.
+ */
+export async function resendRegistrationConfirmation(workshopId: string, registrationId: string): Promise<ResendResult> {
+  await connectToDatabase();
+  const claimed = await WorkshopRegistrationModel.findOneAndUpdate(
+    {
+      _id: registrationId,
+      workshopId,
+      $or: [
+        { "confirmationEmail.status": { $in: ["failed", "skipped"] } },
+        { "confirmationEmail.status": { $exists: false } },
+        { "confirmationEmail.status": "pending", "confirmationEmail.lastAttemptAt": { $lt: new Date(Date.now() - STUCK_PENDING_MS) } },
+        { "confirmationEmail.status": "pending", "confirmationEmail.lastAttemptAt": null, createdAt: { $lt: new Date(Date.now() - STUCK_PENDING_MS) } },
+      ],
+    },
+    { $set: { "confirmationEmail.status": "pending", "confirmationEmail.lastAttemptAt": new Date() } },
+  )
+    .select({ _id: 1 })
+    .lean();
+  if (!claimed) {
+    const exists = await WorkshopRegistrationModel.exists({ _id: registrationId, workshopId });
+    return { ok: false, reason: exists ? "already_sent_or_in_progress" : "not_found" };
+  }
+  const status = await sendRegistrationConfirmation(registrationId);
+  return status ? { ok: true, status } : { ok: false, reason: "not_found" };
 }
 
 export type SettingsResult =
@@ -167,7 +251,7 @@ export async function updateRegistrationSettings(workshopId: string, settings: R
 export async function listRegistrations(workshopId: string) {
   await connectToDatabase();
   const docs = await WorkshopRegistrationModel.find({ workshopId })
-    .select({ name: 1, phone: 1, email: 1, createdAt: 1 })
+    .select({ name: 1, phone: 1, email: 1, createdAt: 1, confirmationEmail: 1 })
     .sort({ createdAt: -1 })
     .lean();
   return docs.map((d) => ({
@@ -176,6 +260,11 @@ export async function listRegistrations(workshopId: string) {
     phone: d.phone,
     email: d.email,
     createdAt: new Date(d.createdAt),
+    // null = registered before email tracking existed.
+    emailStatus: d.confirmationEmail?.status ?? null,
+    emailSentAt: d.confirmationEmail?.sentAt ? new Date(d.confirmationEmail.sentAt) : null,
+    emailError: d.confirmationEmail?.lastError ?? null,
+    emailAttempts: d.confirmationEmail?.attempts ?? 0,
   }));
 }
 

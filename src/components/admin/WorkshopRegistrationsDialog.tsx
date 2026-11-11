@@ -8,7 +8,48 @@ import { Modal } from "@/components/admin/Modal";
 import type { WorkshopListItem } from "@/components/admin/WorkshopList";
 import { fieldErrorsOf, MAX_CAPACITY, registrationSettingsSchema } from "@/lib/workshops/registration-validation";
 
-type Registration = { id: string; name: string; phone: string; email: string; createdAt: string };
+type EmailStatus = "pending" | "sent" | "failed" | "skipped";
+
+type Registration = {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  createdAt: string;
+  emailStatus: EmailStatus | null; // null = registered before email tracking existed
+  emailSentAt: string | null;
+  emailError: string | null;
+  emailAttempts: number;
+};
+
+/** Failed, never sent (no SMTP) and untracked emails can be resent; sent and in-flight ones can't. */
+function canResend(status: EmailStatus | null): boolean {
+  return status === null || status === "failed" || status === "skipped";
+}
+
+function EmailStatusBadge({ r }: { r: Registration }) {
+  const base = "inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold whitespace-nowrap";
+  if (r.emailStatus === "sent") {
+    return (
+      <span className={`${base} bg-[#e8f6e8] text-green`} title={r.emailSentAt ? `Sent ${fmt(r.emailSentAt)}` : undefined}>
+        Sent
+      </span>
+    );
+  }
+  if (r.emailStatus === "failed") {
+    return (
+      <span className={`${base} bg-[#fdece4] text-[#c1440e]`} title={r.emailError ? `${r.emailError} (${r.emailAttempts} attempt${r.emailAttempts === 1 ? "" : "s"})` : undefined}>
+        Failed
+      </span>
+    );
+  }
+  if (r.emailStatus === "pending") return <span className={`${base} bg-[#e9efff] text-royal`}>Sending…</span>;
+  return (
+    <span className={`${base} bg-[#eef1f8] text-muted`} title={r.emailError ?? "Registered before confirmation emails were added."}>
+      Not sent
+    </span>
+  );
+}
 
 const field =
   "w-full rounded-xl border border-[#8d9bc4] bg-white px-4 py-2.5 text-[14px] text-navy outline-none transition-[border-color,box-shadow] placeholder:text-muted/70 hover:border-royal focus:border-royal focus:ring-4 focus:ring-royal/15 disabled:cursor-not-allowed disabled:bg-[#f5f8ff] disabled:opacity-70";
@@ -38,6 +79,8 @@ export function WorkshopRegistrationsDialog({
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resendError, setResendError] = useState<string | null>(null);
   const [isRefreshing, startRefresh] = useTransition();
   const busy = saving || isRefreshing;
 
@@ -89,6 +132,41 @@ export function WorkshopRegistrationsDialog({
       setCapacityError(err instanceof Error ? err.message : "Something went wrong. Try again.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function resendEmail(r: Registration) {
+    if (resendingId) return;
+    setResendingId(r.id);
+    setResendError(null);
+    try {
+      const csrf = await getCsrfToken();
+      const res = await authFetch(`/api/workshops/${workshop.id}/registrations/${r.id}/resend-email`, {
+        method: "POST",
+        headers: { "x-csrf-token": csrf },
+      });
+      const json = (await res.json().catch(() => null)) as { status?: EmailStatus; error?: { message?: string } } | null;
+      if (!res.ok || !json?.status) throw new Error(json?.error?.message ?? "Could not resend the email. Try again.");
+      const status = json.status;
+      setRows((current) =>
+        current?.map((row) =>
+          row.id === r.id
+            ? {
+                ...row,
+                emailStatus: status,
+                emailAttempts: row.emailAttempts + 1,
+                emailSentAt: status === "sent" ? new Date().toISOString() : row.emailSentAt,
+                emailError: status === "sent" ? null : row.emailError,
+              }
+            : row,
+        ) ?? null,
+      );
+      if (status === "failed") setResendError(`Sending to ${r.email} failed again. Check the email settings and try later.`);
+      if (status === "skipped") setResendError("Email is not configured on the server (SMTP), so nothing was sent.");
+    } catch (err) {
+      setResendError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+    } finally {
+      setResendingId(null);
     }
   }
 
@@ -190,6 +268,11 @@ export function WorkshopRegistrationsDialog({
               {exportError}
             </p>
           )}
+          {resendError && (
+            <p role="alert" className="border-b border-line bg-[#fdece4] px-4 py-3 text-[13px] font-medium text-[#c1440e]">
+              {resendError}
+            </p>
+          )}
           {loadError ? (
             <p role="alert" className="px-4 py-6 text-center text-[13px] text-[#c1440e]">
               {loadError}
@@ -202,13 +285,14 @@ export function WorkshopRegistrationsDialog({
             <p className="px-4 py-6 text-center text-[13px] text-muted">No registrations yet.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-left text-[13px]">
+              <table className="w-full min-w-[680px] text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-line text-[11px] font-semibold tracking-[0.5px] text-muted uppercase">
                     <th className="px-4 py-2.5">Name</th>
                     <th className="px-4 py-2.5">Phone</th>
                     <th className="px-4 py-2.5">Email</th>
                     <th className="px-4 py-2.5">Registered</th>
+                    <th className="px-4 py-2.5">Confirmation</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -222,6 +306,23 @@ export function WorkshopRegistrationsDialog({
                         <a href={`mailto:${r.email}`} className="hover:text-royal">{r.email}</a>
                       </td>
                       <td className="px-4 py-2.5 whitespace-nowrap text-muted">{fmt(r.createdAt)}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <EmailStatusBadge r={r} />
+                          {canResend(r.emailStatus) && (
+                            <button
+                              type="button"
+                              onClick={() => void resendEmail(r)}
+                              disabled={resendingId !== null}
+                              aria-label={`Resend confirmation email to ${r.email}`}
+                              className="inline-flex cursor-pointer items-center gap-1 text-[12px] font-semibold whitespace-nowrap text-royal hover:underline disabled:cursor-wait disabled:opacity-60"
+                            >
+                              {resendingId === r.id && <Icon name="loader" size={13} className="inline-block animate-spin" />}
+                              {resendingId === r.id ? "Sending…" : "Resend"}
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
