@@ -1,7 +1,7 @@
 /** Kids Creative Challenge registration. One per student per website account (a parent may register siblings). */
 import mongoose, { Document, Model, Schema, Types } from "mongoose";
 
-/** Payment is not collected yet: every registration starts as pending. */
+/** Every registration starts pending; it becomes paid only after a verified Razorpay payment. */
 export type KidsChallengePaymentStatus = "pending" | "paid";
 
 export interface KidsChallengeRegistrationDoc extends Document {
@@ -18,6 +18,12 @@ export interface KidsChallengeRegistrationDoc extends Document {
   state: string;
   consent: boolean;
   paymentStatus: KidsChallengePaymentStatus;
+  /** Fee charged, in paise. */
+  amountPaise: number;
+  /** Latest Razorpay order created for this registration. */
+  razorpayOrderId: string | null;
+  razorpayPaymentId: string | null;
+  paidAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +45,10 @@ const KidsChallengeRegistrationSchema = new Schema<KidsChallengeRegistrationDoc>
     state: { type: String, required: true, trim: true, maxlength: 60 },
     consent: { type: Boolean, required: true },
     paymentStatus: { type: String, enum: ["pending", "paid"], required: true, default: "pending" },
+    amountPaise: { type: Number, required: true, default: 9900, min: 0 },
+    razorpayOrderId: { type: String, default: null, maxlength: 64 },
+    razorpayPaymentId: { type: String, default: null, maxlength: 64 },
+    paidAt: { type: Date, default: null },
   },
   { timestamps: true, collection: "kids_challenge_registrations" },
 );
@@ -46,6 +56,8 @@ const KidsChallengeRegistrationSchema = new Schema<KidsChallengeRegistrationDoc>
 // The same account can't register the same student twice.
 KidsChallengeRegistrationSchema.index({ userId: 1, studentName: 1 }, { unique: true, collation: STUDENT_NAME_COLLATION });
 KidsChallengeRegistrationSchema.index({ createdAt: -1 });
+// Verify and webhook look registrations up by order id.
+KidsChallengeRegistrationSchema.index({ razorpayOrderId: 1 });
 
 // Dev hot reload keeps mongoose.models alive: drop the old model so schema edits apply without a restart.
 if (process.env.NODE_ENV === "development" && mongoose.models.KidsChallengeRegistration) mongoose.deleteModel("KidsChallengeRegistration");

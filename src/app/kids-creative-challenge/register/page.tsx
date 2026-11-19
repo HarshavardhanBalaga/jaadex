@@ -3,9 +3,10 @@ import Link from "next/link";
 import { Container } from "@/components/Container";
 import { Section } from "@/components/Section";
 import { KidsChallengeRegisterForm } from "@/components/kids/KidsChallengeRegisterForm";
+import { RazorpayPayButton } from "@/components/kids/RazorpayPayButton";
 import { RegistrationNotice } from "@/components/workshops/RegistrationNotice";
 import { benefits, eligibility, hero } from "@/data/kids-challenge";
-import { registeredStudentNames } from "@/lib/kids-challenge/registration-service";
+import { userKidsChallengeRegistrations } from "@/lib/kids-challenge/registration-service";
 import { getCurrentUser } from "@/lib/user/session";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +20,9 @@ const LOGIN_URL = `/login?next=${encodeURIComponent("/kids-creative-challenge/re
 
 export default async function KidsChallengeRegisterPage() {
   const user = await getCurrentUser().catch(() => null);
-  // DB hiccup → no list; the API still refuses a duplicate on submit.
-  const registered = user ? await registeredStudentNames(user).catch(() => []) : [];
+  // DB hiccup → no lists; the API still refuses a duplicate on submit.
+  const empty = { paid: [] as string[], pending: [] as { id: string; studentName: string }[] };
+  const { paid, pending } = user ? await userKidsChallengeRegistrations(user).catch(() => empty) : empty;
 
   return (
     <Section className="bg-hero-wash">
@@ -39,10 +41,25 @@ export default async function KidsChallengeRegisterPage() {
           </p>
 
           <div className="mt-8 grid gap-6">
-            {registered.length > 0 ? (
-              <RegistrationNotice tone="success" title="Already registered from this account">
-                {registered.join(", ")}. You can register another child below.
+            {paid.length > 0 ? (
+              <RegistrationNotice tone="success" title="Confirmed registrations">
+                {paid.join(", ")}. You can register another child below.
               </RegistrationNotice>
+            ) : null}
+
+            {pending.length > 0 ? (
+              <div className="grid gap-3 rounded-[13px] border border-[#f4d2b8] bg-[#fff6ee] p-[15px]">
+                <p className="font-display text-[16px] font-bold text-navy">Awaiting payment</p>
+                <p className="text-[14px] leading-[1.6] text-muted">These registrations are saved but not confirmed until the ₹99 fee is paid.</p>
+                <ul className="grid gap-3">
+                  {pending.map((r) => (
+                    <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-[#f4d2b8] pt-3">
+                      <span className="font-bold text-navy">{r.studentName}</span>
+                      <RazorpayPayButton registrationId={r.id} label={`Pay ₹99 for ${r.studentName}`} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
 
             {user ? (

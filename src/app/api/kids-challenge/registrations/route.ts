@@ -40,13 +40,24 @@ export async function POST(request: Request) {
   try {
     const result = await registerForKidsChallenge(user, parsed.data);
     if (!result.ok) {
+      if (result.reason === "payment_pending") {
+        // Registered earlier but not paid: the client takes payment for that registration.
+        return NextResponse.json(
+          {
+            success: false,
+            registrationId: result.registrationId,
+            error: { code: "payment_pending", message: "This student is already registered. Complete the ₹99 payment to confirm." },
+          },
+          { status: 409, headers: NO_STORE },
+        );
+      }
       const message = "You have already registered this student.";
       return NextResponse.json(
         { success: false, error: { code: "already_registered", message, fields: { studentName: [message] } } },
         { status: 409, headers: NO_STORE },
       );
     }
-    return NextResponse.json({ success: true, message: "Registration received." }, { status: 201, headers: NO_STORE });
+    return NextResponse.json({ success: true, registrationId: result.registrationId, message: "Registration received." }, { status: 201, headers: NO_STORE });
   } catch (err) {
     console.error("[kids-challenge-registration] unavailable:", err instanceof Error ? err.message : err);
     return fail("unavailable", "Service temporarily unavailable. Try again later.", 503);

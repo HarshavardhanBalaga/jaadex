@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/Icon";
+import { RazorpayPayButton } from "@/components/kids/RazorpayPayButton";
 import { RegistrationNotice } from "@/components/workshops/RegistrationNotice";
 import {
   fieldErrorsOf,
@@ -26,8 +27,8 @@ type Props = {
 };
 
 /**
- * Kids Creative Challenge registration form. Validates with the same zod schema as the API,
- * then the server validates again as the authority.
+ * Kids Creative Challenge registration: step 1 saves the details (payment pending), step 2 takes the
+ * ₹99 Razorpay payment. Validates with the same zod schema as the API; the server is the authority.
  */
 export function KidsChallengeRegisterForm({ user }: Props) {
   const router = useRouter();
@@ -44,7 +45,9 @@ export function KidsChallengeRegisterForm({ user }: Props) {
     website: "",
   });
   const [busy, setBusy] = useState(false);
-  const [registeredName, setRegisteredName] = useState<string | null>(null);
+  /** Saved registration awaiting payment (step 2), or null while filling the form. */
+  const [saved, setSaved] = useState<{ id: string; studentName: string } | null>(null);
+  const [paid, setPaid] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
@@ -55,7 +58,8 @@ export function KidsChallengeRegisterForm({ user }: Props) {
   /** Keep the parent and location details, so a sibling can be registered quickly. */
   function registerAnother() {
     setForm((current) => ({ ...current, ...blankStudent, consent: false }));
-    setRegisteredName(null);
+    setSaved(null);
+    setPaid(false);
     router.refresh();
   }
 
@@ -79,6 +83,7 @@ export function KidsChallengeRegisterForm({ user }: Props) {
       });
       const data = (await res.json().catch(() => ({}))) as {
         success?: boolean;
+        registrationId?: string;
         error?: { code?: string; message?: string; fields?: Record<string, string[]> };
       };
       if (res.status === 401) {
@@ -86,12 +91,21 @@ export function KidsChallengeRegisterForm({ user }: Props) {
         router.push(`/login?next=${encodeURIComponent(REGISTER_PATH)}`);
         return;
       }
+      if (data?.error?.code === "payment_pending" && data.registrationId) {
+        // Registered before but never paid: go straight to payment for that registration.
+        setSaved({ id: data.registrationId, studentName: checked.data.studentName });
+        return;
+      }
       if (!res.ok || data.success !== true) {
         setError(data?.error?.message ?? "Something went wrong. Try again later.");
         if (data?.error?.fields) setFieldErrors(data.error.fields);
         return;
       }
-      setRegisteredName(checked.data.studentName);
+      if (!data.registrationId) {
+        setError("Something went wrong. Try again later.");
+        return;
+      }
+      setSaved({ id: data.registrationId, studentName: checked.data.studentName });
     } catch {
       setError("Something went wrong. Try again later.");
     } finally {
@@ -99,11 +113,23 @@ export function KidsChallengeRegisterForm({ user }: Props) {
     }
   }
 
-  if (registeredName) {
+  if (saved && !paid) {
     return (
       <div className="grid justify-items-start gap-4">
-        <RegistrationNotice tone="success" title="Registration received!">
-          {registeredName} is registered for the Kids Creative Challenge. We&apos;ll share the ₹99 payment details and next steps at the email or phone
+        <RegistrationNotice title="Step 2 of 2: complete the payment">
+          {saved.studentName}&apos;s details are saved. Pay the ₹99 entry fee securely with Razorpay (UPI, cards, net banking) to confirm the
+          registration.
+        </RegistrationNotice>
+        <RazorpayPayButton registrationId={saved.id} onPaid={() => setPaid(true)} />
+      </div>
+    );
+  }
+
+  if (saved && paid) {
+    return (
+      <div className="grid justify-items-start gap-4">
+        <RegistrationNotice tone="success" title="Registration confirmed!">
+          Payment received. {saved.studentName} is registered for the Kids Creative Challenge. We&apos;ll share next steps at the email or phone
           number you gave.
         </RegistrationNotice>
         <button
@@ -297,7 +323,7 @@ export function KidsChallengeRegisterForm({ user }: Props) {
           className="mt-2 inline-flex w-auto cursor-pointer items-center justify-center gap-2 justify-self-start rounded-full bg-orange px-6 py-[13px] text-center font-black text-white shadow-pop-orange transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none sm:col-span-2"
         >
           {busy && <Icon name="loader" size={18} className="inline-block animate-spin" />}
-          {busy ? "Registering…" : "Complete registration"}
+          {busy ? "Saving…" : "Continue to payment – ₹99"}
         </button>
       </fieldset>
     </form>

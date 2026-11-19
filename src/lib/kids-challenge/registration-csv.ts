@@ -14,10 +14,12 @@ export type KidsChallengeCsvRow = {
   city: string;
   state: string;
   paymentStatus: "pending" | "paid";
+  razorpayPaymentId: string | null;
+  paidAt: Date | null;
   createdAt: Date;
 };
 
-const HEADER = ["Parent name", "Parent email", "Parent phone", "Student name", "Class", "Age", "School", "City", "State", "Payment", "Registered at (UTC)"];
+const HEADER = ["Parent name", "Parent email", "Parent phone", "Student name", "Class", "Age", "School", "City", "State", "Payment", "Razorpay payment ID", "Paid at (UTC)", "Registered at (UTC)"];
 
 /** BOM so Excel opens UTF-8 names correctly; CRLF line endings per RFC 4180. */
 export function buildKidsChallengeCsv(rows: readonly KidsChallengeCsvRow[]): string {
@@ -33,6 +35,8 @@ export function buildKidsChallengeCsv(rows: readonly KidsChallengeCsvRow[]): str
       r.city,
       r.state,
       r.paymentStatus,
+      r.razorpayPaymentId ?? "",
+      r.paidAt ? r.paidAt.toISOString() : "",
       r.createdAt.toISOString(),
     ]
       .map(cell)
