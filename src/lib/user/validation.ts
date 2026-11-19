@@ -19,3 +19,24 @@ export const userVerifySchema = z
   .strict();
 
 export type UserVerifyInput = z.infer<typeof userVerifySchema>;
+
+const otpField = z.string().trim().regex(/^[0-9]{6,8}$/, "Enter the 6-8 digit code.");
+
+/** Adding a password to an existing Google account. Same shape as reset; never carries a role or name. */
+export const userSetupPasswordSchema = z
+  .object({
+    email: z.string().trim().toLowerCase().min(3).max(254).email("Enter a valid email address."),
+    otp: otpField,
+    newPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters.")
+      .max(128, "Password must be at most 128 characters."),
+    confirmPassword: z.string().min(1, "Confirm your new password."),
+  })
+  .strict()
+  .refine((v) => v.newPassword === v.confirmPassword, {
+    message: "Passwords do not match.",
+    path: ["confirmPassword"],
+  });
+
+export type UserSetupPasswordInput = z.infer<typeof userSetupPasswordSchema>;

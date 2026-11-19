@@ -12,7 +12,7 @@ import { UserSessionModel } from "@/models/UserSession";
 import { getAdminAuthConfig } from "@/lib/admin/auth-config";
 import { hashPassword, verifyPassword } from "@/lib/admin/password";
 import { generateOtp, hashOtp, verifyOtpHash } from "@/lib/admin/otp";
-import { sendUserPasswordResetOtp, sendUserVerificationOtp } from "@/lib/admin/mailer";
+import { sendUserPasswordResetOtp, sendUserPasswordSetupOtp, sendUserVerificationOtp } from "@/lib/admin/mailer";
 
 type IssueOutcome =
   | { outcome: "issued"; otp: string }
@@ -20,7 +20,7 @@ type IssueOutcome =
   | { outcome: "resend_limit" };
 
 /** Creates (or re-issues, respecting cooldown + max resends) the one active code for this user + purpose. */
-async function issueOtp(userId: Types.ObjectId, purpose: UserOtpPurpose): Promise<IssueOutcome> {
+export async function issueOtp(userId: Types.ObjectId, purpose: UserOtpPurpose): Promise<IssueOutcome> {
   const c = getAdminAuthConfig();
   const now = new Date();
   const otp = generateOtp(c.otpLength);
@@ -62,7 +62,7 @@ type ConsumeOutcome =
   | { outcome: "invalid" | "expired" | "locked" | "not_found"; attemptsLeft?: number };
 
 /** Checks a code (expiry, attempts) and consumes it exactly once. */
-async function consumeOtp(userId: Types.ObjectId, purpose: UserOtpPurpose, otp: string): Promise<ConsumeOutcome> {
+export async function consumeOtp(userId: Types.ObjectId, purpose: UserOtpPurpose, otp: string): Promise<ConsumeOutcome> {
   const c = getAdminAuthConfig();
   const record = await UserOtpModel.findOne({ userId, purpose, status: "active" }).select("+otpHash");
   if (!record) return { outcome: "not_found" };
@@ -221,4 +221,50 @@ export async function resetUserPassword(email: string, otp: string, newPassword:
   await UserModel.updateOne({ _id: user._id }, { $set: { passwordHash: await hashPassword(newPassword) } });
   await UserSessionModel.updateMany({ userId: user._id, revokedAt: null }, { $set: { revokedAt: new Date() } });
   return { outcome: "reset" };
+}
+
+/**
+ * Password setup is NOT registration: it adds a password to an existing,
+ * active, password-less (Google) user. Only the `users` record is touched;
+ * admin accounts live in a separate collection and are never affected.
+ */
+async function findPasswordSetupUser(email: string): Promise<{ _id: Types.ObjectId } | null> {
+  const normalized = email.trim().toLowerCase();
+  const user = await UserModel.findOne({ email: normalized, status: "active", passwordHash: null })
+    .select({ _id: 1 })
+    .lean();
+  return user;
+}
+
+/** Emails a setup code. Ineligible emails, cooldowns and resend limits all look the same to the caller. */
+export async function requestUserPasswordSetup(email: string): Promise<void> {
+  const c = getAdminAuthConfig();
+  await connectToDatabase();
+  const user = await findPasswordSetupUser(email);
+  if (!user) return;
+  const issued = await issueOtp(user._id, "password-setup");
+  if (issued.outcome !== "issued") return;
+  await sendUserPasswordSetupOtp(email.trim().toLowerCase(), issued.otp, c.otpExpiresMinutes);
+}
+
+export type UserSetupOutcome =
+  | { outcome: "set" }
+  | { outcome: "invalid" | "expired" | "locked" | "not_found"; attemptsLeft?: number };
+
+/**
+ * Adds the password to the SAME user document. The write is conditional on
+ * there still being no password, so it can never overwrite one (a racing setup
+ * or reset). Only passwordHash changes; id, email, profile and googleSub stay.
+ */
+export async function setupUserPassword(email: string, otp: string, newPassword: string): Promise<UserSetupOutcome> {
+  await connectToDatabase();
+  const user = await findPasswordSetupUser(email);
+  if (!user) return { outcome: "not_found" };
+  const r = await consumeOtp(user._id, "password-setup", otp);
+  if (r.outcome !== "consumed") return r;
+  const updated = await UserModel.updateOne(
+    { _id: user._id, status: "active", passwordHash: null },
+    { $set: { passwordHash: await hashPassword(newPassword) } },
+  );
+  return updated.modifiedCount === 1 ? { outcome: "set" } : { outcome: "invalid" };
 }

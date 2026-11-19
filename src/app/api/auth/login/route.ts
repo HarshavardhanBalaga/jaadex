@@ -8,7 +8,12 @@ import { ok, fail, readJson } from "@/lib/admin/respond";
 
 export const dynamic = "force-dynamic";
 
-/** Website-user login. Generic errors; HTTP-only session cookie; no token in body. */
+/**
+ * Website-user login. "no_account" lets the UI send new visitors to register
+ * (this reveals whether an email has an account; rate limits bound probing).
+ * Wrong password and Google-only accounts get the same generic error, so the
+ * response never reveals how an account signs in. HTTP-only session cookie.
+ */
 export async function POST(request: Request) {
   const csrfError = await validateCsrf(request);
   if (csrfError) {
@@ -28,13 +33,6 @@ export async function POST(request: Request) {
     const r = await loginUser(parsed.data.email, parsed.data.password);
     if (r.outcome === "no_account") {
       return fail("no_account", "No account found for this email. Please register.", 404);
-    }
-    if (r.outcome === "google_only") {
-      return fail(
-        "google_account",
-        "This account uses Google sign-in. Continue with Google, or use Forgot password to add a password.",
-        401,
-      );
     }
     if (r.outcome !== "ok") return fail("invalid_credentials", "Invalid email or password.", 401);
     await createUserSession(r.userId, {
