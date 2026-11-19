@@ -80,11 +80,11 @@ describe("website-user Google sign-in", () => {
     assert.doesNotMatch(route, /console\.(log|debug)\(/);
   });
 
-  it("uses a cookie name separate from the admin transaction cookie", () => {
+  it("uses its own transaction cookie, and admins have no Google flow at all", () => {
     const user = src("src/lib/user/google-routes.ts");
     const admin = src("src/lib/admin/google-routes.ts");
     assert.match(user, /USER_GOOGLE_TXN_COOKIE = "__Host-jaadex_user_oauth"/);
-    assert.match(admin, /ADMIN_GOOGLE_TXN_COOKIE = "__Host-jaadex_admin_oauth"/);
+    assert.doesNotMatch(admin, /ADMIN_GOOGLE_TXN_COOKIE|adminGoogleRedirectUri|googleLoginFailed/);
   });
 
   it("the User model has a partial unique index on googleSub", () => {

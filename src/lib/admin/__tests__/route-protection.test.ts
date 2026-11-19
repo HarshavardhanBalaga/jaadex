@@ -130,3 +130,20 @@ describe("API route protection", () => {
     for (const u of [...USER, ...WEBHOOK]) assert.ok(all.some((h) => h.route === u.route && h.method === u.method), `stale entry: ${u.method} /api/${u.route}`);
   });
 });
+
+describe("admin sign-in is email + password only", () => {
+  it("there is no admin Google OAuth route", () => {
+    assert.equal(
+      all.some((h) => h.route.startsWith("admin/auth/google")),
+      false,
+      "admin Google sign-in was removed: admins use email + password",
+    );
+  });
+
+  it("the admin login page and form offer no Google option", () => {
+    const form = readFileSync(join(process.cwd(), "src", "components", "admin", "AdminLoginForm.tsx"), "utf8");
+    const page = readFileSync(join(process.cwd(), "src", "app", "admin", "login", "page.tsx"), "utf8");
+    assert.doesNotMatch(form, /google/i);
+    assert.doesNotMatch(page, /isGoogleOAuthEnabled|google/i);
+  });
+});
