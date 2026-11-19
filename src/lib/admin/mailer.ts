@@ -10,8 +10,21 @@ import { getAdminAuthConfig } from "./auth-config";
 import { buildEnquiryEmail, type EnquiryForEmail } from "@/lib/contact/notify";
 import { buildOtpEmail } from "@/lib/email/auth-emails";
 import type { EmailParts } from "@/lib/email/layout";
+import { EMAIL_ICON_CID } from "@/lib/email/layout";
+import { EMAIL_ICONS } from "@/lib/email/icon-assets";
 
 let cachedTransport: Transporter | null = null;
+
+/** Footer icons as inline CID attachments, so they render without a hosted URL (localhost or production). */
+function iconAttachments() {
+  return (Object.keys(EMAIL_ICON_CID) as (keyof typeof EMAIL_ICON_CID)[]).map((key) => ({
+    filename: `${key}.png`,
+    content: Buffer.from(EMAIL_ICONS[key], "base64"),
+    contentType: "image/png",
+    cid: EMAIL_ICON_CID[key],
+    contentDisposition: "inline" as const,
+  }));
+}
 
 function getTransport(): Transporter | null {
   const c = getAdminAuthConfig();
@@ -43,7 +56,7 @@ export async function sendRegistrationOtp(otp: string, expiresMinutes: number): 
     console.info("[admin-auth] SMTP not configured; OTP email skipped (dev only).");
     return;
   }
-  await transport.sendMail({ from: c.mailFrom, to: c.adminOtpEmail, ...email });
+  await transport.sendMail({ from: c.mailFrom, to: c.adminOtpEmail, ...email, attachments: iconAttachments() });
 }
 
 export async function sendPasswordResetOtp(to: string, otp: string, expiresMinutes: number): Promise<void> {
@@ -63,7 +76,7 @@ export async function sendPasswordResetOtp(to: string, otp: string, expiresMinut
     console.info("[admin-auth] SMTP not configured; password-reset email skipped (dev only).");
     return;
   }
-  await transport.sendMail({ from: c.mailFrom, to, ...email });
+  await transport.sendMail({ from: c.mailFrom, to, ...email, attachments: iconAttachments() });
 }
 
 /** Website-user registration code, sent to the user's own email. */
@@ -84,7 +97,7 @@ export async function sendUserVerificationOtp(to: string, otp: string, expiresMi
     console.info("[user-auth] SMTP not configured; verification email skipped (dev only).");
     return;
   }
-  await transport.sendMail({ from: c.mailFrom, to, ...email });
+  await transport.sendMail({ from: c.mailFrom, to, ...email, attachments: iconAttachments() });
 }
 
 /** Website-user password-reset code, sent to the user's own email. */
@@ -105,7 +118,7 @@ export async function sendUserPasswordResetOtp(to: string, otp: string, expiresM
     console.info("[user-auth] SMTP not configured; password-reset email skipped (dev only).");
     return;
   }
-  await transport.sendMail({ from: c.mailFrom, to, ...email });
+  await transport.sendMail({ from: c.mailFrom, to, ...email, attachments: iconAttachments() });
 }
 
 /**
@@ -123,7 +136,7 @@ export async function sendWorkshopEmail(
     console.info("[workshops] SMTP not configured; workshop email skipped (dev only).");
     return "skipped";
   }
-  await transport.sendMail({ from: c.mailFrom, to, subject: email.subject, text: email.text, html: email.html, attachments });
+  await transport.sendMail({ from: c.mailFrom, to, subject: email.subject, text: email.text, html: email.html, attachments: [...iconAttachments(), ...attachments] });
   return "sent";
 }
 
@@ -136,5 +149,5 @@ export async function sendEnquiryNotification(enquiry: EnquiryForEmail): Promise
     return;
   }
   const { subject, text, html } = buildEnquiryEmail(enquiry, c.appUrl);
-  await transport.sendMail({ from: c.mailFrom, to: c.enquiryNotifyEmails, replyTo: enquiry.email, subject, text, html });
+  await transport.sendMail({ from: c.mailFrom, to: c.enquiryNotifyEmails, replyTo: enquiry.email, subject, text, html, attachments: iconAttachments() });
 }
