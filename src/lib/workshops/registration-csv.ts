@@ -16,7 +16,7 @@ const FORMULA_START = /^[=+\-@\t\r]/;
 /** A bare signed number (e.g. phone "+919876543210") can't run as a formula, so it stays as-is. */
 const PLAIN_NUMBER = /^[+-]?[0-9]+$/;
 
-function cell(value: string): string {
+export function cell(value: string): string {
   const safe = FORMULA_START.test(value) && !PLAIN_NUMBER.test(value) ? `'${value}` : value;
   return `"${safe.replace(/"/g, '""')}"`;
 }

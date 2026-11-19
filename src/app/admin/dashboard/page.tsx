@@ -13,6 +13,7 @@ import { AdminDashboardShell, type AdminSection } from "@/components/admin/Admin
 import { WorkshopList, type WorkshopListItem } from "@/components/admin/WorkshopList";
 import { WorkshopRegistrationsView } from "@/components/admin/WorkshopRegistrationsView";
 import { interests, workshopInterest } from "@/lib/contact/validation";
+import { listKidsChallengeRegistrations, type KidsChallengeRegistrationRow } from "@/lib/kids-challenge/registration-service";
 
 export const metadata: Metadata = { title: "Admin Dashboard", description: "JaaDeX admin dashboard." };
 export const dynamic = "force-dynamic";
@@ -99,6 +100,8 @@ export default async function AdminDashboardPage() {
   let workshops: WorkshopListItem[] = [];
   // Submission counts per form topic, across all requests (not just the newest 50).
   let topicCounts = new Map<string, { total: number; newCount: number }>();
+  // Kids Creative Challenge registrations, newest first.
+  let kidsRegistrations: KidsChallengeRegistrationRow[] = [];
   try {
     const c = getAdminAuthConfig();
     const store = await cookies();
@@ -142,6 +145,7 @@ export default async function AdminDashboardPage() {
     ]);
     topicCounts = new Map(topicDocs.map((t) => [t._id, { total: t.total, newCount: t.newCount }]));
     workshops = await listWorkshops();
+    kidsRegistrations = await listKidsChallengeRegistrations();
   } catch {
     redirect("/admin/login");
   }
@@ -158,7 +162,7 @@ export default async function AdminDashboardPage() {
       label: "Overview",
       icon: "dashboard",
       content: (
-        <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-label="Overview">
+        <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4" aria-label="Overview">
           <StatCard
             label="New enquiries"
             value={String(newRequests)}
@@ -174,6 +178,14 @@ export default async function AdminDashboardPage() {
             href="#workshops"
             icon="calendar"
             accent="royal"
+          />
+          <StatCard
+            label="Kids Challenge"
+            value={String(kidsRegistrations.length)}
+            hint={`${kidsRegistrations.filter((r) => r.paymentStatus === "pending").length} payment pending`}
+            href="#kids-challenge"
+            icon="sparkles"
+            accent="orange"
           />
           <StatCard
             label="Administrators"
@@ -284,6 +296,67 @@ export default async function AdminDashboardPage() {
       icon: "check",
       children: workshops.map((w) => ({ id: `registrations/${w.id}`, label: w.title })),
       content: <WorkshopRegistrationsView workshops={workshops} />,
+    },
+    {
+      id: "kids-challenge",
+      label: "Kids Challenge",
+      icon: "sparkles",
+      content: (
+        <Card
+          title="Kids Creative Challenge registrations"
+          subtitle="Newest first. Visible only to admins."
+          action={
+            kidsRegistrations.length > 0 ? (
+              <a
+                href="/api/kids-challenge/registrations/export"
+                className="inline-flex items-center gap-1.5 rounded-full border border-line px-3.5 py-1.5 text-[13px] font-semibold text-royal hover:bg-canvas"
+              >
+                <Icon name="download" size={15} />
+                Export CSV
+              </a>
+            ) : null
+          }
+        >
+          {kidsRegistrations.length === 0 ? (
+            <p className="px-5 py-6 text-[13px] text-muted">No registrations yet. New Kids Creative Challenge registrations will appear here.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1080px] text-left text-[13px]">
+                <thead className="bg-canvas">
+                  <tr className="border-b border-line text-[11px] font-bold tracking-[1.2px] text-muted uppercase">
+                    <th className="px-6 py-3.5">Student</th>
+                    <th className="px-6 py-3.5">Class</th>
+                    <th className="px-6 py-3.5">Age</th>
+                    <th className="px-6 py-3.5">School</th>
+                    <th className="px-6 py-3.5">City / State</th>
+                    <th className="px-6 py-3.5">Parent</th>
+                    <th className="px-6 py-3.5">Phone</th>
+                    <th className="px-6 py-3.5">Email</th>
+                    <th className="px-6 py-3.5">Payment</th>
+                    <th className="px-6 py-3.5">Registered</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {kidsRegistrations.map((r) => (
+                    <tr key={r.id} className="transition-colors hover:bg-canvas/60">
+                      <td className="px-6 py-3.5 text-navy break-all">{r.studentName}</td>
+                      <td className="px-6 py-3.5 text-muted">{r.studentClass}</td>
+                      <td className="px-6 py-3.5 text-muted">{r.studentAge}</td>
+                      <td className="px-6 py-3.5 text-muted wrap-break-word">{r.schoolName}</td>
+                      <td className="px-6 py-3.5 text-muted wrap-break-word">{`${r.city}, ${r.state}`}</td>
+                      <td className="px-6 py-3.5 text-navy break-all">{r.parentName}</td>
+                      <td className="px-6 py-3.5 whitespace-nowrap text-muted">{r.parentPhone}</td>
+                      <td className="px-6 py-3.5 text-muted break-all">{r.parentEmail}</td>
+                      <td className="px-6 py-3.5 whitespace-nowrap text-muted">{r.paymentStatus}</td>
+                      <td className="px-6 py-3.5 whitespace-nowrap text-muted">{fmt(r.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      ),
     },
     {
       id: "administrators",

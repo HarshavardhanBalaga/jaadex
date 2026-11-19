@@ -4,11 +4,10 @@
  */
 
 /**
- * Central registration/payment link. NOT LIVE: the registration link has not been provided yet.
- * Until it is set, every CTA points to the registration section, which states that
- * registration opens later. No registration or payment is simulated.
+ * Central registration link: every CTA on the page opens the registration form.
+ * Payment is not collected yet; registrations are saved with payment pending.
  */
-export const registrationHref = "#register";
+export const registrationHref = "/kids-creative-challenge/register";
 
 export const brand = "JaaDeX";
 export const challengeTitle = "Kids Creative Challenge";
