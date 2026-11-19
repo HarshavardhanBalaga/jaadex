@@ -3,7 +3,7 @@ export const siteConfig = {
   legalName: "JaaDeX Innovision Pvt Ltd",
   description:
     "A creative learning platform connecting animation, storytelling, school education, projects and creative events.",
-  email: "hello@jaadex.com",
+  email: "info@jaadex.com",
 };
 
 export const navigation = [
