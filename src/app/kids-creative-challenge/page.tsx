@@ -1,28 +1,19 @@
 import type { Metadata } from "next";
-import type { ComponentProps } from "react";
-import { Brand } from "@/components/Brand";
+import type { CSSProperties } from "react";
 import { ButtonLink } from "@/components/ButtonLink";
-import { CalloutBand } from "@/components/CalloutBand";
 import { ClosingCard } from "@/components/ClosingCard";
 import { Container } from "@/components/Container";
 import { Eyebrow } from "@/components/Eyebrow";
-import { FeatureCard } from "@/components/FeatureCard";
-import { FeatureGrid } from "@/components/FeatureGrid";
 import { Icon } from "@/components/Icon";
 import { Section } from "@/components/Section";
 import { SectionHeading } from "@/components/SectionHeading";
-import { CreativePlaceholder } from "@/components/kids/CreativePlaceholder";
 import {
   benefits,
   eligibility,
   finalCta,
   footer,
   hero,
-  howToJoin,
-  introduction,
   mission,
-  navLinks,
-  placeholders,
   prizes,
   registrationHref,
 } from "@/data/kids-challenge";
@@ -32,32 +23,11 @@ export const metadata: Metadata = {
   description: hero.description,
 };
 
-type IconName = ComponentProps<typeof Icon>["name"];
-
 /** Icons per card, in the order the supplied copy lists them. */
-const introIcons: IconName[] = ["wand", "bulb", "graduation"];
-const missionIcons: IconName[] = ["book", "pencil", "clapperboard", "presentation"];
-const benefitIcons: IconName[] = ["book", "pencil", "users", "dashboard", "sparkles", "graduation"];
-const benefitTones = ["blue", "peach", "lilac", "mint", "blue", "peach"] as const;
 
 export default function KidsCreativeChallengePage() {
   return (
     <>
-      {/* Own header for this page: brand, page links and the register button. Sticks to the top. */}
-      <header className="sticky top-0 z-20 border-b border-royal/10 bg-paper/95 backdrop-blur-md">
-        <Container className="flex flex-wrap items-center gap-x-6 gap-y-3 py-3 md:h-[76px] md:flex-nowrap md:py-0">
-          <Brand />
-          <nav aria-label="Challenge sections" className="order-last -mx-1 flex w-full min-w-0 items-center gap-5 overflow-x-auto px-1 text-[14px] font-black whitespace-nowrap text-[#2b3a78] [scrollbar-width:none] md:order-none md:w-auto md:flex-1 md:justify-center md:overflow-visible">
-            {navLinks.map((link) => (
-              <a key={link.href} href={link.href} className="shrink-0 rounded-md py-1 hover:text-orange focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange">
-                {link.label}
-              </a>
-            ))}
-          </nav>
-          <ButtonLink href={registrationHref} size="small">Register – ₹99</ButtonLink>
-        </Container>
-      </header>
-
       {/* Hero */}
       <section className="bg-hero-wash py-[72px] md:py-[96px]">
         <Container className="text-center">
@@ -74,81 +44,82 @@ export default function KidsCreativeChallengePage() {
             </div>
             <p className="mt-6 font-display text-[17px] font-bold text-orange">{hero.tagline}</p>
           </div>
-          <div className="mx-auto mt-12 max-w-[900px]">
-            <CreativePlaceholder description={placeholders.hero} ratio="16 / 9">
-              <span className="flex gap-4">
-                {hero.icons.map((icon) => (
-                  <span key={icon}>{icon}</span>
-                ))}
-              </span>
-            </CreativePlaceholder>
+          <div className="mx-auto mt-12 max-w-[900px] overflow-hidden rounded-[26px] border border-line shadow-[0_18px_40px_-24px_rgba(20,40,100,0.35)]">
+            <img
+              src="/assets/kids-creative/poster.png"
+              alt="Kids Creative Challenge poster: top 10 student winners, prize amounts and ₹99 per student entry"
+              className="block w-full"
+            />
           </div>
         </Container>
       </section>
-
-      {/* Challenge introduction */}
-      <Section id="challenge" className="scroll-mt-28">
-        <Container>
-          <SectionHeading eyebrow="The challenge" title={introduction.heading} description={introduction.subheading} />
-          <FeatureGrid>
-            {introduction.highlights.map((highlight, index) => (
-              <FeatureCard
-                key={highlight}
-                tone={(["blue", "peach", "lilac"] as const)[index]}
-                icon={<Icon name={introIcons[index]} size={32} />}
-                title={highlight}
-                description=""
-              />
-            ))}
-          </FeatureGrid>
-          <div className="mt-[17px]">
-            <CreativePlaceholder description={placeholders.introduction} ratio="21 / 9" />
-          </div>
-        </Container>
-      </Section>
 
       {/* Creative mission */}
       <Section id="mission" className="scroll-mt-28 bg-[#f6f8ff]">
         <Container>
           <SectionHeading eyebrow={mission.sectionLabel} title={mission.heading} description={mission.description} />
-          <div className="mb-[17px] grid gap-[17px] sm:grid-cols-2 lg:grid-cols-4">
-            {[placeholders.chooseLesson, placeholders.createComic, placeholders.animate, placeholders.submit].map((art) => (
-              <CreativePlaceholder key={art} description={art} ratio="4 / 3" />
-            ))}
+          <div className="mt-10 grid items-center gap-10 lg:grid-cols-[1.3fr_.7fr]">
+            <img
+              src="/assets/kids-creative/mission.png"
+              alt="Four steps: choose a lesson, create a comic, animate your story, then submit it through the JaaDeX student dashboard"
+              loading="lazy"
+              className="w-full rounded-[28px] border border-line bg-paper shadow-[0_18px_40px_-24px_rgba(20,40,100,0.35)]"
+            />
+            <ol className="grid list-none gap-7">
+              {mission.steps.map((step) => (
+                <li key={step.number} className="flex gap-4">
+                  <span className="grid size-11 shrink-0 place-items-center rounded-full bg-royal font-display text-[15px] font-black text-white" aria-hidden="true">
+                    {step.number}
+                  </span>
+                  <div>
+                    <h3 className="font-display text-[20px] leading-tight font-black text-navy">{step.title}</h3>
+                    <p className="mt-1.5 text-[15px] leading-[1.7] text-[#4a5a85]">{step.description}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
           </div>
-          <FeatureGrid columns={4}>
-            {mission.steps.map((step, index) => (
-              <FeatureCard
-                key={step.number}
-                tone={(["blue", "peach", "lilac", "mint"] as const)[index]}
-                icon={<Icon name={missionIcons[index]} size={32} />}
-                title={`${step.number} — ${step.title}`}
-                description={step.description}
-              />
-            ))}
-          </FeatureGrid>
         </Container>
       </Section>
 
       {/* Registration benefits */}
-      <Section id="benefits" className="scroll-mt-28">
+      <Section id="benefits" className="scroll-mt-28 bg-[#FAFBFF]">
         <Container>
           <SectionHeading eyebrow={benefits.sectionLabel} title={benefits.heading} description={benefits.description} />
-          <div className="mb-[17px] rounded-[32px] bg-linear-[120deg,#dce8ff,#ffe6d3] px-6 py-[30px] text-center md:p-[43px]">
-            <p className="font-display text-[64px] leading-none font-black text-navy">{benefits.price}</p>
-            <p className="mt-3 text-[13px] font-black tracking-[1.6px] text-royal uppercase">{benefits.priceNote}</p>
+          <div className="relative mx-auto flex max-w-[860px] flex-col items-center gap-4 md:block md:h-[720px]">
+            {/* Ambient glow behind the centre */}
+            <div aria-hidden="true" className="pointer-events-none absolute top-1/2 left-1/2 hidden size-[480px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,150,70,0.18),rgba(255,150,70,0)_70%)] md:block" />
+
+            {/* Faint circular surface + dashed orbit (perfect circle, desktop only) */}
+            <div aria-hidden="true" className="pointer-events-none absolute top-1/2 left-1/2 hidden size-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-royal/50 bg-[radial-gradient(circle,rgba(255,232,214,0.5),rgba(255,232,214,0)_72%)] md:block" />
+
+            {/* Centre: entry fee */}
+            <div className="relative z-10 mb-2 grid size-[220px] place-items-center rounded-full bg-linear-[135deg,#ffe8d6,#ffc999] text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.9),inset_0_-12px_24px_rgba(40,70,160,0.08),0_2px_4px_rgba(20,40,100,0.08),0_16px_32px_-8px_rgba(40,70,160,0.25),0_40px_60px_-24px_rgba(40,70,160,0.3)] md:absolute md:top-1/2 md:left-1/2 md:mb-0 md:-translate-x-1/2 md:-translate-y-1/2">
+              <div>
+                <p className="font-display text-[56px] leading-none font-black text-navy [text-shadow:0_1px_0_rgba(255,255,255,0.8)]">{benefits.price}</p>
+                <p className="mt-2 px-4 text-[11px] font-black tracking-[1.4px] text-royal uppercase">{benefits.priceNote}</p>
+              </div>
+            </div>
+
+            {/* Benefits orbit around the centre on desktop, stack on mobile */}
+            {benefits.cards.map((card, index) => {
+              const angle = ((-90 + index * 60) * Math.PI) / 180;
+              const orbit = {
+                "--x": `${Math.round(280 * Math.cos(angle))}px`,
+                "--y": `${Math.round(280 * Math.sin(angle))}px`,
+              } as CSSProperties;
+              return (
+                <div
+                  key={card.title}
+                  style={orbit}
+                  className="relative w-full max-w-[360px] rounded-[24px] border border-[#d3e0fa] bg-linear-[180deg,#ffffff,#f4f8ff] p-5 text-center shadow-[0_1px_2px_rgba(20,40,100,0.05),0_8px_20px_-10px_rgba(40,70,160,0.16),0_24px_44px_-24px_rgba(40,70,160,0.22)] transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_2px_4px_rgba(20,40,100,0.06),0_16px_30px_-12px_rgba(40,70,160,0.22),0_32px_60px_-24px_rgba(40,70,160,0.3)] md:absolute md:top-1/2 md:left-1/2 md:w-[230px] md:max-w-none md:[transform:translate(calc(-50%_+_var(--x)),calc(-50%_+_var(--y)))]"
+                >
+                  <h3 className="font-display text-[17px] leading-tight font-black text-navy">{card.title}</h3>
+                  <p className="mt-1.5 text-[14px] leading-[1.6] text-[#4a5a85]">{card.description}</p>
+                </div>
+              );
+            })}
           </div>
-          <FeatureGrid>
-            {benefits.cards.map((card, index) => (
-              <FeatureCard
-                key={card.title}
-                tone={benefitTones[index]}
-                icon={<Icon name={benefitIcons[index]} size={32} />}
-                title={card.title}
-                description={card.description}
-              />
-            ))}
-          </FeatureGrid>
           <p className="mx-auto mt-8 max-w-[760px] rounded-[20px] border border-line bg-paper p-5 text-center text-[14px] leading-[1.7] font-bold text-navy">
             {benefits.disclaimer}
           </p>
@@ -156,24 +127,51 @@ export default function KidsCreativeChallengePage() {
       </Section>
 
       {/* Recognition & rewards */}
-      <Section id="prizes" className="scroll-mt-28 bg-[#f6f8ff]">
+      <Section id="prizes" className="scroll-mt-28">
         <Container>
-          <SectionHeading eyebrow={prizes.sectionLabel} title={prizes.heading} description={prizes.description} />
-          <FeatureGrid columns={4}>
-            {prizes.cards.map((card, index) => (
-              <FeatureCard
-                key={card.label}
-                tone={(["peach", "blue", "lilac", "mint"] as const)[index]}
-                icon={<span className="text-3xl leading-none" aria-hidden="true">{card.medal}</span>}
-                title={card.label}
-                description={card.note ? `${card.amount} · ${card.note}` : card.amount}
-              />
+          <div className="mx-auto max-w-[760px] text-center">
+            <p className="inline-flex rounded-full border border-royal/20 bg-white px-4 py-1.5 text-[13px] font-black tracking-[1.6px] text-royal uppercase">
+              {prizes.sectionLabel}
+            </p>
+            <h2 className="mt-5 font-display text-[clamp(32px,4vw,46px)] leading-[1.08] font-black tracking-[-1px] text-navy">{prizes.heading}</h2>
+            <p className="mx-auto mt-4 max-w-[640px] text-[16px] leading-[1.75] text-[#4a5a85]">{prizes.description}</p>
+          </div>
+
+          {/* Pool total sits on top of the podium */}
+          <div className="mt-12 text-center">
+            <p className="inline-flex rounded-full bg-gold px-7 py-3.5 font-display text-[clamp(22px,3vw,30px)] leading-tight font-black text-navy">{prizes.poolLabel}</p>
+          </div>
+
+          {/* Podium: 2nd, 1st (tallest, centre), 3rd; label and amount sit inside each step */}
+          <div className="mx-auto mt-10 grid max-w-[860px] grid-cols-3 items-end gap-3 md:gap-6">
+            {[
+              { prize: prizes.cards[1], step: "h-40 md:h-48", base: "bg-linear-[180deg,#f1f4f9,#d9e0ec]" },
+              { prize: prizes.cards[0], step: "h-56 md:h-68", base: "bg-linear-[180deg,#fdf1c9,#f7dc8f]" },
+              { prize: prizes.cards[2], step: "h-32 md:h-36", base: "bg-linear-[180deg,#f8e6d8,#ecc7a6]" },
+            ].map(({ prize, step, base }) => (
+              <div key={prize.label} className="flex flex-col items-center text-center">
+                <span className="text-[40px] leading-none md:text-[52px]" aria-hidden="true">{prize.medal}</span>
+                <div className={`mt-3 flex w-full flex-col items-center rounded-t-[22px] px-3 pt-5 ${step} ${base}`}>
+                  <p className="font-display text-[12px] font-black tracking-[1.4px] text-[#4a5a85] uppercase">{prize.label}</p>
+                  <p className="mt-1 font-display text-[clamp(20px,2.6vw,30px)] leading-tight font-black text-navy">{prize.amount}</p>
+                </div>
+              </div>
             ))}
-          </FeatureGrid>
-          <div className="mt-[17px]">
-            <CalloutBand title={prizes.poolLabel} description={prizes.judging}>
-              <ButtonLink href={registrationHref} variant="light">{hero.cta}</ButtonLink>
-            </CalloutBand>
+          </div>
+
+          {/* Ranks 4–10 as a single strip */}
+          <div className="mx-auto mt-6 flex max-w-[860px] flex-col items-center gap-2 rounded-[24px] border border-line bg-paper px-6 py-5 text-center md:flex-row md:justify-between md:text-left">
+            <div>
+              <p className="font-display text-[20px] font-black text-navy">{prizes.cards[3].label}</p>
+              {prizes.cards[3].note ? <p className="text-[14px] text-[#4a5a85]">{prizes.cards[3].note}</p> : null}
+            </div>
+            <p className="font-display text-[28px] font-black text-royal">{prizes.cards[3].amount}</p>
+          </div>
+
+          {/* Judging and call to action */}
+          <div className="mx-auto mt-12 grid max-w-[860px] gap-6 border-t border-line pt-10 md:grid-cols-[1fr_auto] md:items-center">
+            <p className="text-[14px] leading-[1.7] text-muted">{prizes.judging}</p>
+            <ButtonLink href={registrationHref}>{hero.cta}</ButtonLink>
           </div>
         </Container>
       </Section>
@@ -182,7 +180,7 @@ export default function KidsCreativeChallengePage() {
       <Section>
         <Container>
           <SectionHeading eyebrow={eligibility.sectionLabel} title={eligibility.heading} />
-          <div className="mx-auto grid max-w-[980px] gap-[17px] md:grid-cols-[1.1fr_.9fr]">
+          <div className="mx-auto grid max-w-[980px] gap-6 md:grid-cols-[1.25fr_.75fr] md:items-center md:gap-10">
             <ul className="grid list-none gap-[13px] rounded-[25px] border border-line bg-paper p-6 md:p-7">
               {eligibility.points.map((point) => (
                 <li key={point} className="flex items-center gap-3 text-[15px] font-bold text-navy">
@@ -193,27 +191,8 @@ export default function KidsCreativeChallengePage() {
                 </li>
               ))}
             </ul>
-            <p className="rounded-[25px] bg-[#fff1e4] p-6 text-[15px] leading-[1.75] font-bold text-navy md:p-7">{eligibility.disclaimer}</p>
+            <p className="rounded-[25px] bg-[#fff1e4] p-6 text-[15px] leading-[1.75] font-medium text-[#4a5a85] md:p-7">{eligibility.disclaimer}</p>
           </div>
-        </Container>
-      </Section>
-
-      {/* How to join */}
-      <Section id="how-to-join" className="scroll-mt-28 bg-[#f6f8ff]">
-        <Container>
-          <SectionHeading eyebrow={howToJoin.sectionLabel} title={howToJoin.heading} />
-          <FeatureGrid columns={4}>
-            {howToJoin.steps.map((step, index) => (
-              <FeatureCard
-                key={step}
-                tone={(["blue", "peach", "lilac", "mint"] as const)[index]}
-                icon={<span className="font-display text-2xl font-black" aria-hidden="true">{index + 1}</span>}
-                title={`Step ${index + 1}`}
-                description={step}
-              />
-            ))}
-          </FeatureGrid>
-          <p className="mx-auto mt-8 max-w-[760px] text-center text-[14px] leading-[1.7] text-muted">{howToJoin.disclaimer}</p>
         </Container>
       </Section>
 
@@ -223,29 +202,27 @@ export default function KidsCreativeChallengePage() {
           <ClosingCard title={finalCta.heading} description={`${finalCta.supporting} ${finalCta.description}`}>
             <ButtonLink href={registrationHref}>{finalCta.cta}</ButtonLink>
           </ClosingCard>
-          <p className="mx-auto mt-6 max-w-[720px] text-center text-[14px] leading-[1.7] text-muted">{finalCta.note}</p>
+          <p className="mx-auto mt-2 max-w-[720px] text-center text-[14px] leading-[1.7] text-muted">{finalCta.note}</p>
         </Container>
       </Section>
 
       {/* Challenge details (the site footer follows) */}
-      <section className="bg-midnight py-[40px] text-[#cfd9f5]">
-        <Container className="grid gap-6 md:grid-cols-[1.2fr_1fr] md:items-center">
-          <div>
-            <p className="font-display text-[22px] font-black text-white">{footer.brand}</p>
-            <p className="mt-2 text-[14px] text-[#aebbe0]">Organised by {footer.organisedBy}</p>
-            <p className="mt-2 text-[14px] font-bold text-gold">{footer.tagline}</p>
-          </div>
-          <div className="grid gap-2 text-[14px] md:justify-items-end">
-            <p>
+      <section className="scroll-mt-28 py-16 md:py-20">
+        <Container className="text-center">
+          <div className="mx-auto max-w-[560px]">
+            <p className="font-display text-[26px] font-black text-navy">{footer.brand}</p>
+            <p className="mt-2 text-[14px] text-muted">Organised by {footer.organisedBy}</p>
+            <p className="mt-3 font-display text-[16px] font-black text-orange">{footer.tagline}</p>
+            <p className="mt-6 text-[14px] text-[#4a5a85]">
               Website:{" "}
-              <a href={footer.websiteHref} className="font-bold text-white underline-offset-4 hover:underline">{footer.website}</a>
+              <a href={footer.websiteHref} className="font-bold text-navy underline-offset-4 hover:underline">{footer.website}</a>
             </p>
-            <p>
+            <p className="mt-1 text-[14px] text-[#4a5a85]">
               {footer.emailNote}{" "}
-              <a href={`mailto:${footer.email}`} className="font-bold text-white underline-offset-4 hover:underline">{footer.email}</a>
+              <a href={`mailto:${footer.email}`} className="font-bold text-navy underline-offset-4 hover:underline">{footer.email}</a>
             </p>
-            <div className="pt-2">
-              <ButtonLink href={registrationHref} size="small">{footer.cta}</ButtonLink>
+            <div className="mt-8">
+              <ButtonLink href={registrationHref}>{footer.cta}</ButtonLink>
             </div>
           </div>
         </Container>

@@ -21,7 +21,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
   // The challenge landing page has its own header and links.
-  if (pathname.startsWith("/kids-creative-challenge")) return null;
+  if (pathname.startsWith("/kids-creative-challenge") && pathname !== "/kids-creative-challenge") return null;
 
   return (
     <>
