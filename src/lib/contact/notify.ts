@@ -68,6 +68,7 @@ export function buildEnquiryEmail(e: EnquiryForEmail, siteUrl: string): EmailPar
     body,
     footnote: "Sent automatically when someone submits the website enquiry form.",
     logoUrl: `${siteUrl}/logo/jaadexlogo.png`,
+    siteUrl,
   });
   return { subject, text, html };
 }
