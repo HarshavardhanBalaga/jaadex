@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Brand } from "./Brand";
 import { Container } from "./Container";
 import { navigation } from "@/lib/site";
+import { business } from "@/lib/business";
 
 const columnTitle = "mt-[5px] mb-[15px] text-[13px] font-bold text-[#ffffff]";
 const columnLink = "my-[11px] block text-[13px] text-[#aebbe0] hover:text-gold";
@@ -56,31 +57,35 @@ export function Footer() {
           <div>
             <h2 className={columnTitle}>Explore</h2>
             {navigation.map((item) => <Link className={columnLink} href={item.href} key={item.href}>{item.label}</Link>)}
+            <Link className={columnLink} href="/pricing">Pricing</Link>
+            <Link className={columnLink} href="/contact">Contact</Link>
           </div>
           <div>
             <h2 className={columnTitle}>Our work</h2>
             <Link className={columnLink} href="/schools">School Animation Learning</Link>
             <Link className={columnLink} href="/projects">Creative Projects</Link>
             <Link className={columnLink} href="/workshops">Workshops</Link>
+            <Link className={columnLink} href="/kids-creative-challenge">Kids Creative Challenge</Link>
           </div>
           <div className="hidden max-md:block lg:block">
             <h2 className={columnTitle}>Contact Us</h2>
-            <a className={columnLink} href="mailto:info@jaadex.com">info@jaadex.com</a>
+            <a className={columnLink} href={`mailto:${business.email}`}>{business.email}</a>
+            <a className={columnLink} href={business.phoneHref}>{business.phoneDisplay}</a>
             <address className="my-[11px] block text-[13px] not-italic leading-[1.7] text-[#aebbe0]">
-              4th Floor, Ratan Tata Innovation Hub,
-              <br />
-              Mayuri Techpark, Amaravati,
-              <br />
-              Andhra Pradesh
+              {business.addressLines.map((line) => (
+                <span key={line} className="block">{line}</span>
+              ))}
             </address>
           </div>
         </div>
         <div className="flex flex-wrap justify-between gap-[15px] border-t border-white/10 pt-[18px] text-[11px] text-[#8d9cc9] max-md:flex-col max-md:gap-0 max-md:leading-8">
-          <span>© {new Date().getFullYear()} JaaDeX Innovision Pvt Ltd. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} {business.legalName}. All rights reserved.</span>
           <span>Imagine. Create. Animate. 🌱</span>
-          <span className="flex gap-4">
+          <span className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link className="hover:text-gold" href="/terms">Terms &amp; Conditions</Link>
             <Link className="hover:text-gold" href="/privacy-policy">Privacy Policy</Link>
-            <Link className="hover:text-gold" href="/terms">Terms and Conditions</Link>
+            <Link className="hover:text-gold" href="/refund-policy">Refund &amp; Cancellation</Link>
+            <Link className="hover:text-gold" href="/shipping-policy">Shipping &amp; Delivery</Link>
           </span>
         </div>
       </Container>

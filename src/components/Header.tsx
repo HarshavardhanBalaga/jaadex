@@ -13,12 +13,15 @@ import { UserNav } from "./auth/UserNav";
 /** Top-level header links. /demo is reached through the Free Demo button, so it is not listed here. */
 const headerLinks = [
   ...navigation.filter((item) => item.href !== "/demo"),
-  { label: "Partner Program", href: "/partner-program" },
+  // { label: "Partner Program", href: "/partner-program" },
+  { label: "Kids Challenge", href: "/kids-creative-challenge" },
 ];
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
+  // The challenge landing page has its own header and links.
+  if (pathname.startsWith("/kids-creative-challenge")) return null;
 
   return (
     <>

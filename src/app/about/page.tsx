@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "About JaaDeX", description: "Learn a
 export default function AboutPage() {
   return (
     <>
-      <PageHero eyebrow="About JaaDeX Innovision" title={<>Growing a generation of <span>creative thinkers.</span></>} description="JaaDeX Innovision Pvt Ltd is a creative technology company working at the intersection of education, animation, storytelling and digital creation. Our goal is to make creative tools and learning experiences more approachable for students and educators." art="🌱">
+      <PageHero eyebrow="About JaaDeX Innovision" title={<>Growing a generation of <span>creative thinkers.</span></>} description="JaaDeX is the brand of JaaDeX Innovision Pvt Ltd, a creative technology company working at the intersection of education, animation, storytelling and digital creation. Our goal is to make creative tools and learning experiences more approachable for students and educators." art="🌱">
         <ButtonLink href="/contact">Connect with JaaDeX ↗</ButtonLink>
       </PageHero>
 

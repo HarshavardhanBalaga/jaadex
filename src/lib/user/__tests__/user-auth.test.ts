@@ -51,8 +51,9 @@ describe("user-auth", () => {
     }
   });
 
-  it("enquiries are login-gated on the server, not just by the proxy", () => {
-    assert.match(src("src/proxy.ts"), /matcher:[^\]]*"\/contact"/, "proxy redirects guests from /contact");
+  it("contact page is public; the enquiry form and API stay login-gated on the server", () => {
+    assert.doesNotMatch(src("src/proxy.ts"), /matcher:[^\]]*"\/contact"/, "/contact is a public page");
+    assert.match(src("src/app/contact/page.tsx"), /user \? \(/, "contact page renders the enquiry form only for a logged-in user");
     assert.match(src("src/app/contact/page.tsx"), /getCurrentUser\(\)/, "contact page verifies the session");
     assert.match(src("src/app/api/contact/route.ts"), /getCurrentUser\(\)/, "contact API verifies the session");
   });
