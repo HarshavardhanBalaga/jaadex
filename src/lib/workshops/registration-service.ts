@@ -160,6 +160,7 @@ export async function sendRegistrationConfirmation(registrationId: string): Prom
     date: w.date ? new Date(w.date).toISOString() : null,
     location: w.location ?? "",
     workshopsUrl: `${getAdminAuthConfig().appUrl}/workshops`,
+    siteUrl: getAdminAuthConfig().appUrl,
   });
   const now = new Date();
   let set: Record<string, unknown>;

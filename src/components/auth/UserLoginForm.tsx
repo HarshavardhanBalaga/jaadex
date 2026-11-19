@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { resetPasswordSchema } from "@/lib/admin/validation";
 import { getCsrfToken, postJson } from "@/lib/admin-client/auth-fetch";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+
+const GOOGLE_ERROR = "Google sign-in didn't complete. Try again or use your email and password.";
 
 const inputClass =
   "w-full rounded-xl border border-[#cfd9f0] bg-white px-[13px] py-3 text-ink outline-none focus:border-royal focus:ring-[3px] focus:ring-royal/10";
@@ -30,7 +33,7 @@ function errMsg(data: Record<string, unknown>, fallback: string): string {
  * login -> forgot (email) -> reset (code + new password) -> back to login.
  * `next` is already sanitized by the page (safeNext).
  */
-export function UserLoginForm({ next }: { next: string }) {
+export function UserLoginForm({ next, googleError = false }: { next: string; googleError?: boolean }) {
   const router = useRouter();
   const [step, setStep] = useState<"login" | "forgot" | "reset">("login");
   const [email, setEmail] = useState("");
@@ -39,7 +42,7 @@ export function UserLoginForm({ next }: { next: string }) {
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(googleError ? GOOGLE_ERROR : "");
   const [info, setInfo] = useState("");
   // Seconds until "Resend code" is allowed (mirrors the server's resend cooldown).
   const [resendIn, setResendIn] = useState(0);
@@ -214,6 +217,7 @@ export function UserLoginForm({ next }: { next: string }) {
     // method="post" is defense-in-depth: a native submission never puts credentials in the URL.
     <form onSubmit={submit} method="post" action="/api/auth/login" className="grid gap-5">
       {infoBox}
+      <GoogleSignInButton next={next} label="Continue with Google" />
       {emailField}
       <div className="grid gap-2">
         <div className="flex items-center justify-between gap-3">
