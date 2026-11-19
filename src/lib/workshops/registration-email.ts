@@ -57,6 +57,7 @@ export function buildRegistrationConfirmationEmail(e: RegistrationEmailInput): E
     body,
     footnote: `You're receiving this because you registered for ${title} on JaaDeX.`,
     logoUrl: `${e.siteUrl}/logo/jaadexlogo.png`,
+    siteUrl: e.siteUrl,
   });
   return { subject, text, html };
 }
@@ -92,6 +93,7 @@ export function buildWorkshopUpdateEmail(e: RegistrationEmailInput & { subject: 
     body,
     footnote: `You're receiving this because you are registered for ${title} on JaaDeX.`,
     logoUrl: `${e.siteUrl}/logo/jaadexlogo.png`,
+    siteUrl: e.siteUrl,
   });
   return { subject, text, html };
 }

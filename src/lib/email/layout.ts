@@ -110,6 +110,37 @@ export interface EmailFrame {
   /** Plain-text note under the body, e.g. why the reader got this mail. */
   footnote: string;
   logoUrl: string;
+  /** Site origin, e.g. https://www.jaadex.com. Used for the website link and the icon images. */
+  siteUrl: string;
+}
+
+/**
+ * Same links as the website footer. Icon images are inline CID attachments (see EMAIL_ICON_CID
+ * and mailer.ts), so they show on localhost and production alike without hosting.
+ */
+export const EMAIL_ICON_CID = {
+  website: "jx-icon-website",
+  instagram: "jx-icon-instagram",
+  linkedin: "jx-icon-linkedin",
+  facebook: "jx-icon-facebook",
+} as const;
+
+const SOCIAL_LINKS = [
+  { label: "Website", cid: EMAIL_ICON_CID.website, url: "" },
+  { label: "Instagram", cid: EMAIL_ICON_CID.instagram, url: "https://www.instagram.com/jaadexinnovision" },
+  { label: "LinkedIn", cid: EMAIL_ICON_CID.linkedin, url: "https://www.linkedin.com/company/jaadex-innovision" },
+  { label: "Facebook", cid: EMAIL_ICON_CID.facebook, url: "https://www.facebook.com/jaadexinnovision" },
+] as const;
+
+function socialLinks(siteUrl: string): string {
+  const base = siteUrl.replace(/\/+$/, "");
+  const cells = SOCIAL_LINKS.map((link) => {
+    const href = link.url || base;
+    return `<a href="${escapeHtml(href)}" target="_blank" style="text-decoration:none;"><img src="cid:${link.cid}" width="24" height="24" alt="${escapeHtml(link.label)}" title="${escapeHtml(link.label)}" style="display:inline-block;width:24px;height:24px;border:0;"></a>`;
+  });
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 16px auto;">
+<tr>${cells.map((c) => `<td style="padding:0 10px;">${c}</td>`).join("")}</tr>
+</table>`;
 }
 
 /** Wraps a body in the fixed JaaDeX frame: header, card, footer. */
@@ -147,6 +178,7 @@ export function renderEmail(frame: EmailFrame): string {
     <tr><td class="jx-foot" style="padding:24px 32px 32px 32px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${C.line};">
         <tr><td align="center" style="padding:24px 0 0 0;">
+          ${socialLinks(frame.siteUrl)}
           <p style="margin:0 0 8px 0;font-family:${FONT};font-size:${SIZE.label}px;line-height:1.5;color:${C.muted};">${escapeHtml(frame.footnote)}</p>
           <p style="margin:0;font-family:${FONT};font-size:${SIZE.label}px;line-height:1.5;color:${C.muted};">JaaDeX Innovision Pvt Ltd</p>
         </td></tr>

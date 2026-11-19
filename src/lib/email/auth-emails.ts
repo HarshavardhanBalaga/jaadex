@@ -37,6 +37,7 @@ export function buildOtpEmail(e: OtpEmailInput): EmailParts {
       body,
       footnote: "This is an automated security email. Please do not reply to it.",
       logoUrl: `${e.siteUrl}/logo/jaadexlogo.png`,
+      siteUrl: e.siteUrl,
     }),
   };
 }
