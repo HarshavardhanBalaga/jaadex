@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { authFetch } from "@/lib/admin-client/auth-fetch";
+import { authFetch, getCsrfToken } from "@/lib/admin-client/auth-fetch";
 import { Icon } from "@/components/Icon";
 
 /** Shared look for the Kids Challenge admin section; matches the workshop registrations panel. */
@@ -58,6 +58,70 @@ export function PaymentStatusBadge({ status }: { status: "created" | "paid" | "f
   }
   return <span className={`${badgeBase} bg-[#eef1f8] text-[#3d4a6b]`}>No payment yet</span>;
 }
+
+export type EmailStatus = "pending" | "sent" | "failed" | "skipped";
+
+/** Payment confirmation email state. Unpaid registrations get their email after payment. */
+export function EmailStatusBadge({
+  status,
+  paid,
+  sentAt,
+  error,
+  attempts,
+}: {
+  status: EmailStatus | null;
+  paid: boolean;
+  sentAt: string | null;
+  error: string | null;
+  attempts: number;
+}) {
+  if (!paid && status === null) return <span className={`${badgeBase} bg-[#eef1f8] text-[#3d4a6b]`}>After payment</span>;
+  if (status === "sent") {
+    return (
+      <span className={`${badgeBase} bg-[#e3f4e3] text-[#1d6b1d]`} title={sentAt ? `Sent ${fmtDateTime(sentAt)}` : undefined}>
+        <Icon name="check" size={12} /> Sent
+      </span>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <span className={`${badgeBase} bg-[#fdece4] text-[#a33d0c]`} title={error ? `${error} (${attempts} attempt${attempts === 1 ? "" : "s"})` : undefined}>
+        <Icon name="alert" size={12} /> Failed
+      </span>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <span className={`${badgeBase} bg-[#e9efff] text-royal`}>
+        <Icon name="loader" size={12} className="animate-spin" /> Sending
+      </span>
+    );
+  }
+  return (
+    <span className={`${badgeBase} bg-[#eef1f8] text-[#3d4a6b]`} title={error ?? "Paid before confirmation emails were added."}>
+      Not sent
+    </span>
+  );
+}
+
+/** Resend the confirmation email (admin, CSRF). Returns the new delivery status or throws the server's message. */
+export async function resendConfirmationEmail(registrationId: string): Promise<EmailStatus> {
+  const csrf = await getCsrfToken();
+  const res = await authFetch(`/api/admin/kids-challenge/registrations/${registrationId}/resend-email`, { method: "POST", headers: { "x-csrf-token": csrf } });
+  const json = (await res.json().catch(() => null)) as { status?: EmailStatus; error?: { message?: string } } | null;
+  if (!res.ok || !json?.status) throw new Error(json?.error?.message ?? "Could not resend the email. Try again.");
+  return json.status;
+}
+
+/** Toast text for a resend outcome. */
+export function resendMessage(status: EmailStatus, to: string): string {
+  if (status === "sent") return `Confirmation email sent to ${to}.`;
+  if (status === "skipped") return "Email is not configured on the server (SMTP), so nothing was sent.";
+  return `Sending to ${to} failed. Check the email settings and try again.`;
+}
+
+export const smallButton =
+  "inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[#8d9bc4] bg-white px-3 text-[13px] font-semibold text-navy transition-colors hover:border-royal hover:text-royal disabled:cursor-not-allowed disabled:opacity-50";
 
 export function LoadingRow({ label }: { label: string }) {
   return (

@@ -146,6 +146,8 @@ export type KidsChallengeRegistrationRow = {
   razorpayPaymentId: string | null;
   paidAt: Date | null;
   createdAt: Date;
+  emailStatus: "pending" | "sent" | "failed" | "skipped" | null;
+  emailSentAt: Date | null;
 };
 
 /** All registrations, newest first. Used by the admin dashboard and the CSV export. */
@@ -170,6 +172,8 @@ export async function listKidsChallengeRegistrations(): Promise<KidsChallengeReg
     razorpayPaymentId: d.razorpayPaymentId ?? null,
     paidAt: d.paidAt ? new Date(d.paidAt) : null,
     createdAt: new Date(d.createdAt),
+    emailStatus: d.confirmationEmail?.status ?? null,
+    emailSentAt: d.confirmationEmail?.sentAt ? new Date(d.confirmationEmail.sentAt) : null,
   }));
 }
 

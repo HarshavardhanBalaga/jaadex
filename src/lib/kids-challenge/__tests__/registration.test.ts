@@ -67,12 +67,14 @@ describe("kids challenge CSV", () => {
         razorpayPaymentId: "pay_ABC123",
         paidAt: new Date("2026-01-02T03:10:00Z"),
         createdAt: new Date("2026-01-02T03:04:05Z"),
+        emailStatus: "sent",
+        emailSentAt: new Date("2026-01-02T03:10:30Z"),
       },
     ]);
     const [header, row] = csv.replace(/^﻿/, "").split("\r\n");
     assert.match(header, /^"Parent name","Parent email"/);
     assert.ok(row.startsWith(`"'=HYPERLINK(""x"")"`));
-    assert.ok(row.includes(`"paid","pay_ABC123","2026-01-02T03:10:00.000Z","2026-01-02T03:04:05.000Z"`));
+    assert.ok(row.includes(`"paid","pay_ABC123","2026-01-02T03:10:00.000Z","2026-01-02T03:04:05.000Z","sent","2026-01-02T03:10:30.000Z"`));
   });
 });
 

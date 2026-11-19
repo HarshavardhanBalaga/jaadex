@@ -7,11 +7,27 @@ import { ADMIN_PAGE_LIMITS, type AdminRegistrationsQuery } from "@/lib/kids-chal
 import { formatInr } from "@/lib/kids-challenge/analytics";
 import { INDIAN_STATES, MAX_CLASS, MIN_CLASS } from "@/lib/kids-challenge/registration-validation";
 import { RegistrationDetailDialog } from "./RegistrationDetailDialog";
-import { downloadCsv, EmptyRow, ErrorRow, field, fmtDateTime, getAdminJson, LoadingRow, Pager, RegistrationStatusBadge, secondaryButton, type Pagination } from "./ui";
+import {
+  downloadCsv,
+  EmailStatusBadge,
+  EmptyRow,
+  ErrorRow,
+  field,
+  fmtDateTime,
+  getAdminJson,
+  LoadingRow,
+  Pager,
+  RegistrationStatusBadge,
+  resendConfirmationEmail,
+  resendMessage,
+  secondaryButton,
+  smallButton,
+  type Pagination,
+} from "./ui";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const CLASSES = Array.from({ length: MAX_CLASS - MIN_CLASS + 1 }, (_, i) => MIN_CLASS + i);
-const DEFAULT_QUERY: AdminRegistrationsQuery = { page: 1, limit: 25, q: "", payment: "all", studentClass: "all", state: "all", sort: "createdAt", order: "desc" };
+const DEFAULT_QUERY: AdminRegistrationsQuery = { page: 1, limit: 25, q: "", payment: "all", studentClass: "all", state: "all", email: "all", sort: "createdAt", order: "desc" };
 
 function SortHeader({ label, sortKey, query, onSort }: { label: string; sortKey: AdminRegistrationsQuery["sort"]; query: AdminRegistrationsQuery; onSort: (k: AdminRegistrationsQuery["sort"]) => void }) {
   const active = query.sort === sortKey;
@@ -37,6 +53,37 @@ export function KidsChallengeRegistrations({ onChanged }: { onChanged: (message:
   const [openId, setOpenId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resendError, setResendError] = useState<string | null>(null);
+
+  async function resend(r: AdminRegistrationRow) {
+    if (resendingId) return;
+    setResendingId(r.id);
+    setResendError(null);
+    try {
+      const status = await resendConfirmationEmail(r.id);
+      setRows(
+        (current) =>
+          current?.map((row) =>
+            row.id === r.id
+              ? {
+                  ...row,
+                  emailStatus: status,
+                  emailAttempts: row.emailAttempts + 1,
+                  emailSentAt: status === "sent" ? new Date().toISOString() : row.emailSentAt,
+                  emailError: status === "sent" ? null : row.emailError,
+                }
+              : row,
+          ) ?? null,
+      );
+      if (status === "sent") onChanged(resendMessage(status, r.parentEmail));
+      else setResendError(resendMessage(status, r.parentEmail));
+    } catch (err) {
+      setResendError(err instanceof Error ? err.message : "Could not resend the email. Try again.");
+    } finally {
+      setResendingId(null);
+    }
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -91,7 +138,7 @@ export function KidsChallengeRegistrations({ onChanged }: { onChanged: (message:
   }
 
   const loading = rows !== null && loadedKey !== queryKey;
-  const filtersActive = query.q !== "" || query.payment !== "all" || query.studentClass !== "all" || query.state !== "all";
+  const filtersActive = query.q !== "" || query.payment !== "all" || query.studentClass !== "all" || query.state !== "all" || query.email !== "all";
 
   return (
     <section className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
@@ -133,6 +180,13 @@ export function KidsChallengeRegistrations({ onChanged }: { onChanged: (message:
             </option>
           ))}
         </select>
+        <select aria-label="Confirmation email" value={query.email} onChange={(e) => update({ email: e.target.value as AdminRegistrationsQuery["email"] })} className={`${field} h-10`}>
+          <option value="all">All emails</option>
+          <option value="sent">Email sent</option>
+          <option value="failed">Email failed</option>
+          <option value="not_sent">Email not sent</option>
+          <option value="pending">Email sending</option>
+        </select>
         {filtersActive && (
           <button
             type="button"
@@ -155,6 +209,11 @@ export function KidsChallengeRegistrations({ onChanged }: { onChanged: (message:
           {exportError}
         </p>
       )}
+      {resendError && (
+        <p role="alert" className="px-6 pt-3 text-[13px] font-medium text-[#a33d0c]">
+          {resendError}
+        </p>
+      )}
 
       {error && rows === null ? (
         <ErrorRow message={error} onRetry={() => setReloadToken((n) => n + 1)} />
@@ -173,13 +232,14 @@ export function KidsChallengeRegistrations({ onChanged }: { onChanged: (message:
             </p>
           )}
           <div className={`overflow-x-auto transition-opacity ${loading ? "opacity-60" : ""}`} aria-busy={loading}>
-            <table className="w-full min-w-[980px] text-left text-[14px]">
+            <table className="w-full min-w-[1140px] text-left text-[14px]">
               <thead className="border-b border-line bg-[#f7f9fd] text-[12px] font-semibold tracking-[0.4px] text-[#2b3a63] uppercase">
                 <tr>
                   <SortHeader label="Student" sortKey="studentName" query={query} onSort={toggleSort} />
                   <th className="px-4 py-3">School / place</th>
                   <th className="px-4 py-3">Parent</th>
                   <th className="px-4 py-3">Payment</th>
+                  <th className="px-4 py-3">Confirmation email</th>
                   <SortHeader label="Paid" sortKey="paidAt" query={query} onSort={toggleSort} />
                   <SortHeader label="Registered" sortKey="createdAt" query={query} onSort={toggleSort} />
                 </tr>
@@ -213,6 +273,25 @@ export function KidsChallengeRegistrations({ onChanged }: { onChanged: (message:
                     <td className="px-4 py-3.5">
                       <RegistrationStatusBadge status={r.paymentStatus} />
                       <p className="mt-1 text-[12px] text-[#4a5a85] tabular-nums">{formatInr(r.amountPaise)}</p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <EmailStatusBadge status={r.emailStatus} paid={r.paymentStatus === "paid"} sentAt={r.emailSentAt} error={r.emailError} attempts={r.emailAttempts} />
+                        {r.paymentStatus === "paid" && r.emailStatus !== "pending" && (
+                          <button
+                            type="button"
+                            onClick={() => void resend(r)}
+                            disabled={resendingId !== null}
+                            aria-label={`Resend confirmation email to ${r.parentEmail}`}
+                            className={smallButton}
+                          >
+                            {resendingId === r.id && <Icon name="loader" size={13} className="animate-spin" />}
+                            {resendingId === r.id ? "Sending…" : "Resend"}
+                          </button>
+                        )}
+                      </div>
+                      {r.emailStatus === "sent" && r.emailSentAt && <p className="mt-1 text-[12px] text-[#4a5a85]">{fmtDateTime(r.emailSentAt)}</p>}
+                      {r.emailStatus === "failed" && r.emailError && <p className="mt-1 max-w-[220px] truncate text-[12px] text-[#a33d0c]" title={r.emailError}>{r.emailError}</p>}
                     </td>
                     <td className="px-4 py-3.5 text-[13px] whitespace-nowrap text-[#2b3a63] tabular-nums">{fmtDateTime(r.paidAt)}</td>
                     <td className="px-4 py-3.5 text-[13px] whitespace-nowrap text-[#2b3a63] tabular-nums">{fmtDateTime(r.createdAt)}</td>

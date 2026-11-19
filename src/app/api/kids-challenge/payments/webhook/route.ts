@@ -8,6 +8,7 @@ import { recordPaymentFailed, recordPaymentSucceeded } from "@/lib/kids-challeng
 import { toRazorpayPayment } from "@/lib/payments/razorpay";
 import { razorpayWebhookSecret } from "@/lib/payments/razorpay";
 import { verifyWebhookSignature } from "@/lib/payments/razorpay-signature";
+import { scheduleKidsConfirmation } from "@/lib/kids-challenge/confirmation-service";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
     // notes.registrationId is set by our server when creating the order, so it also covers an older order of the same registration.
     const result = await markPaid(registrationId, orderId, payment.id, payment);
     if (result.status === "paid" || result.status === "already_paid") await recordPaymentSucceeded(orderId, payment, "webhook");
+    if (result.status === "paid") scheduleKidsConfirmation(registrationId);
     return NextResponse.json({ ok: true, result: result.status });
   } catch (err) {
     console.error("[kids-challenge-payment] webhook error:", err instanceof Error ? err.message : err);

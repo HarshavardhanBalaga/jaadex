@@ -6,7 +6,19 @@ import { Icon } from "@/components/Icon";
 import { Modal } from "@/components/admin/Modal";
 import type { AdminRegistrationDetail } from "@/lib/kids-challenge/admin-service";
 import { formatInr, methodLabel } from "@/lib/kids-challenge/analytics";
-import { ErrorRow, fmtDateTime, getAdminJson, LoadingRow, PaymentStatusBadge, primaryButton, RegistrationStatusBadge, secondaryButton } from "./ui";
+import {
+  EmailStatusBadge,
+  ErrorRow,
+  fmtDateTime,
+  getAdminJson,
+  LoadingRow,
+  PaymentStatusBadge,
+  primaryButton,
+  RegistrationStatusBadge,
+  resendConfirmationEmail,
+  resendMessage,
+  secondaryButton,
+} from "./ui";
 
 const SOURCE_LABEL = { checkout: "checkout", webhook: "Razorpay webhook", admin_sync: "admin sync" } as const;
 
@@ -26,6 +38,24 @@ export function RegistrationDetailDialog({ registrationId, onClose, onChanged }:
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [resending, setResending] = useState(false);
+  const [emailMessage, setEmailMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+
+  async function resendEmail() {
+    if (resending || !reg) return;
+    setResending(true);
+    setEmailMessage(null);
+    try {
+      const status = await resendConfirmationEmail(registrationId);
+      setEmailMessage({ tone: status === "sent" ? "ok" : "error", text: resendMessage(status, reg.parentEmail) });
+      if (status === "sent") onChanged(resendMessage(status, reg.parentEmail));
+      reload();
+    } catch (err) {
+      setEmailMessage({ tone: "error", text: err instanceof Error ? err.message : "Could not resend the email. Try again." });
+    } finally {
+      setResending(false);
+    }
+  }
 
   const [reloadToken, setReloadToken] = useState(0);
   const reload = () => setReloadToken((t) => t + 1);
@@ -151,6 +181,50 @@ export function RegistrationDetailDialog({ registrationId, onClose, onChanged }:
                 <span className="font-mono text-[12px]">{reg.id}</span>
               </Detail>
             </dl>
+          </section>
+
+          <section aria-labelledby={`${id}-email`}>
+            <h4 id={`${id}-email`} className="mb-3 font-display text-[15px] font-bold text-navy">
+              Confirmation email
+            </h4>
+            {reg.paymentStatus !== "paid" ? (
+              <p className="text-[13px] text-muted">Sent automatically once the ₹99 payment is confirmed.</p>
+            ) : (
+              <div className="grid gap-3 rounded-xl border border-line p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <EmailStatusBadge status={reg.emailStatus} paid sentAt={reg.emailSentAt} error={reg.emailError} attempts={reg.emailAttempts} />
+                    <span className="text-[13px] break-all text-muted">to {reg.parentEmail}</span>
+                  </div>
+                  <button type="button" onClick={() => void resendEmail()} disabled={resending || reg.emailStatus === "pending"} className={secondaryButton}>
+                    <Icon name={resending ? "loader" : "mail"} size={16} className={resending ? "animate-spin" : ""} />
+                    {resending ? "Sending…" : "Resend email"}
+                  </button>
+                </div>
+                <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-[13px] sm:grid-cols-2">
+                  <div>
+                    <dt className="inline text-muted">Last sent: </dt>
+                    <dd className="inline text-navy">{fmtDateTime(reg.emailSentAt)}</dd>
+                  </div>
+                  <div>
+                    <dt className="inline text-muted">Attempts: </dt>
+                    <dd className="inline text-navy tabular-nums">{reg.emailAttempts}</dd>
+                  </div>
+                  {reg.emailError && reg.emailStatus !== "sent" && (
+                    <div className="sm:col-span-2">
+                      <dt className="inline text-muted">Last error: </dt>
+                      <dd className="inline text-[#a33d0c]">{reg.emailError}</dd>
+                    </div>
+                  )}
+                </dl>
+                <p className="text-[12px] text-muted">Resending sends the same confirmation again to the parent&apos;s registered email address.</p>
+                {emailMessage && (
+                  <p role={emailMessage.tone === "error" ? "alert" : "status"} className={`text-[13px] font-medium ${emailMessage.tone === "error" ? "text-[#a33d0c]" : "text-[#1d6b1d]"}`}>
+                    {emailMessage.text}
+                  </p>
+                )}
+              </div>
+            )}
           </section>
 
           <section aria-labelledby={`${id}-payments`}>

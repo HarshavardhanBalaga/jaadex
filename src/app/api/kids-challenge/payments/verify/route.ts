@@ -6,6 +6,7 @@ import { findByOrder, markPaid } from "@/lib/kids-challenge/registration-service
 import { fetchRazorpayPayment, isRazorpayConfigured, razorpayKeySecret } from "@/lib/payments/razorpay";
 import { verifyPaymentSignature } from "@/lib/payments/razorpay-signature";
 import { recordPaymentSucceeded } from "@/lib/kids-challenge/payment-ledger";
+import { scheduleKidsConfirmation } from "@/lib/kids-challenge/confirmation-service";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,8 @@ export async function POST(request: Request) {
     const result = await markPaid(reg.id, orderId, paymentId, payment);
     if (result.status === "paid" || result.status === "already_paid") {
       await recordPaymentSucceeded(orderId, payment, "checkout");
+      // Only the first confirmation of this payment sends the email (the claim also dedupes).
+      if (result.status === "paid") scheduleKidsConfirmation(reg.id);
       return NextResponse.json({ success: true, message: "Payment confirmed." }, { headers: NO_STORE });
     }
     if (result.status === "rejected" && result.reason === "not_captured") {

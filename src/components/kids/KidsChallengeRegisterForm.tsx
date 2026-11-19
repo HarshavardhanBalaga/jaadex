@@ -129,8 +129,9 @@ export function KidsChallengeRegisterForm({ user }: Props) {
     return (
       <div className="grid justify-items-start gap-4">
         <RegistrationNotice tone="success" title="Registration confirmed!">
-          Payment received. {saved.studentName} is registered for the Kids Creative Challenge. We&apos;ll share next steps at the email or phone
-          number you gave.
+          Payment received. {saved.studentName} is registered for the Kids Creative Challenge. A confirmation email is on its way to{" "}
+          <strong className="break-all text-navy">{form.parentEmail.trim().toLowerCase()}</strong>. Check your spam folder if you don&apos;t see it
+          within a few minutes.
         </RegistrationNotice>
         <button
           type="button"

@@ -15,7 +15,7 @@ const src = (p: string): string => readFileSync(join(process.cwd(), p), "utf8");
 describe("admin query schemas", () => {
   it("registrations: defaults, coercion and rejects", () => {
     const d = adminRegistrationsQuerySchema.parse({});
-    assert.deepEqual(d, { page: 1, limit: 25, q: "", payment: "all", studentClass: "all", state: "all", sort: "createdAt", order: "desc" });
+    assert.deepEqual(d, { page: 1, limit: 25, q: "", payment: "all", studentClass: "all", state: "all", email: "all", sort: "createdAt", order: "desc" });
     const p = adminRegistrationsQuerySchema.parse({ page: "3", limit: "50", studentClass: "7", state: "Telangana", payment: "paid", sort: "paidAt" });
     assert.equal(p.page, 3);
     assert.equal(p.studentClass, 7);

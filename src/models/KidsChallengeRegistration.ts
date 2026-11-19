@@ -4,6 +4,18 @@ import mongoose, { Document, Model, Schema, Types } from "mongoose";
 /** Every registration starts pending; it becomes paid only after a verified Razorpay payment. */
 export type KidsChallengePaymentStatus = "pending" | "paid";
 
+/** Confirmation email after payment. skipped = SMTP not configured (local dev). Rows paid before email tracking have no value. */
+export type KidsConfirmationEmailStatus = "pending" | "sent" | "failed" | "skipped";
+
+export interface KidsConfirmationEmail {
+  status: KidsConfirmationEmailStatus;
+  attempts: number;
+  lastAttemptAt: Date | null;
+  sentAt: Date | null;
+  /** Short failure reason for admins. Never contains credentials. */
+  lastError: string | null;
+}
+
 export interface KidsChallengeRegistrationDoc extends Document {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
@@ -24,6 +36,7 @@ export interface KidsChallengeRegistrationDoc extends Document {
   razorpayOrderId: string | null;
   razorpayPaymentId: string | null;
   paidAt: Date | null;
+  confirmationEmail?: KidsConfirmationEmail;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +62,13 @@ const KidsChallengeRegistrationSchema = new Schema<KidsChallengeRegistrationDoc>
     razorpayOrderId: { type: String, default: null, maxlength: 64 },
     razorpayPaymentId: { type: String, default: null, maxlength: 64 },
     paidAt: { type: Date, default: null },
+    confirmationEmail: {
+      status: { type: String, enum: ["pending", "sent", "failed", "skipped"] },
+      attempts: { type: Number, default: 0, min: 0 },
+      lastAttemptAt: { type: Date, default: null },
+      sentAt: { type: Date, default: null },
+      lastError: { type: String, default: null, maxlength: 300 },
+    },
   },
   { timestamps: true, collection: "kids_challenge_registrations" },
 );
@@ -58,6 +78,8 @@ KidsChallengeRegistrationSchema.index({ userId: 1, studentName: 1 }, { unique: t
 KidsChallengeRegistrationSchema.index({ createdAt: -1 });
 // Verify and webhook look registrations up by order id.
 KidsChallengeRegistrationSchema.index({ razorpayOrderId: 1 });
+// Admin "confirmation email" filter.
+KidsChallengeRegistrationSchema.index({ "confirmationEmail.status": 1 });
 
 // Dev hot reload keeps mongoose.models alive: drop the old model so schema edits apply without a restart.
 if (process.env.NODE_ENV === "development" && mongoose.models.KidsChallengeRegistration) mongoose.deleteModel("KidsChallengeRegistration");

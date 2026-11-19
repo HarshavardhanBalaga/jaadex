@@ -5,6 +5,7 @@ import { readAuthCookies } from "@/lib/admin/cookies";
 import { checkRateLimit, clientIp } from "@/lib/admin/rate-limit";
 import { fail, ok } from "@/lib/admin/respond";
 import { syncRegistrationPayments } from "@/lib/kids-challenge/admin-service";
+import { scheduleKidsConfirmation } from "@/lib/kids-challenge/confirmation-service";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (result.reason === "not_configured") return fail("payments_unavailable", "Razorpay keys are not configured on the server.", 503);
       return fail("no_orders", "This parent never opened the payment window, so there is nothing to check with Razorpay.", 409);
     }
+    // Sync found the payment that checkout/webhook missed: the parent never got a confirmation either.
+    if (result.status === "paid") scheduleKidsConfirmation(id);
     return ok({ sync: result });
   } catch (err) {
     console.error("[kids-challenge-admin] sync failed:", err instanceof Error ? err.message : err);

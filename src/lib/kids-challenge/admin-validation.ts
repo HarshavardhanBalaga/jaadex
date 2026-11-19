@@ -27,6 +27,7 @@ export const adminRegistrationsQuerySchema = z
     payment: z.enum(["all", "paid", "pending"], "Unknown payment filter.").default("all"),
     studentClass: z.union([z.literal("all"), z.coerce.number().int().min(MIN_CLASS).max(MAX_CLASS)], "Unknown class.").default("all"),
     state: z.union([z.literal("all"), z.enum(INDIAN_STATES)], "Unknown state.").default("all"),
+    email: z.enum(["all", "sent", "failed", "not_sent", "pending"], "Unknown email status filter.").default("all"),
     sort: z.enum(["createdAt", "studentName", "paidAt"], "Unknown sort field.").default("createdAt"),
     order,
   })

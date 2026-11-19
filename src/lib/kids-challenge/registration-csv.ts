@@ -17,9 +17,14 @@ export type KidsChallengeCsvRow = {
   razorpayPaymentId: string | null;
   paidAt: Date | null;
   createdAt: Date;
+  /** null = no email attempted (unpaid, or paid before email tracking). */
+  emailStatus: "pending" | "sent" | "failed" | "skipped" | null;
+  emailSentAt: Date | null;
 };
 
-const HEADER = ["Parent name", "Parent email", "Parent phone", "Student name", "Class", "Age", "School", "City", "State", "Payment", "Razorpay payment ID", "Paid at (UTC)", "Registered at (UTC)"];
+const EMAIL_LABEL = { pending: "sending", sent: "sent", failed: "failed", skipped: "not sent" } as const;
+
+const HEADER = ["Parent name", "Parent email", "Parent phone", "Student name", "Class", "Age", "School", "City", "State", "Payment", "Razorpay payment ID", "Paid at (UTC)", "Registered at (UTC)", "Confirmation email", "Email sent at (UTC)"];
 
 /** BOM so Excel opens UTF-8 names correctly; CRLF line endings per RFC 4180. */
 export function buildKidsChallengeCsv(rows: readonly KidsChallengeCsvRow[]): string {
@@ -38,6 +43,8 @@ export function buildKidsChallengeCsv(rows: readonly KidsChallengeCsvRow[]): str
       r.razorpayPaymentId ?? "",
       r.paidAt ? r.paidAt.toISOString() : "",
       r.createdAt.toISOString(),
+      r.emailStatus ? EMAIL_LABEL[r.emailStatus] : r.paymentStatus === "paid" ? "not sent" : "",
+      r.emailSentAt ? r.emailSentAt.toISOString() : "",
     ]
       .map(cell)
       .join(","),

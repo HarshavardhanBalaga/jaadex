@@ -13,7 +13,7 @@ import { recordPaymentFailed, recordPaymentSucceeded } from "@/lib/kids-challeng
 import { fillDailySeries, istDayStart, istStartOfDay, percent, type DailyPoint } from "@/lib/kids-challenge/analytics";
 import type { AdminPaymentsQuery, AdminRegistrationsQuery } from "@/lib/kids-challenge/admin-validation";
 import { MAX_CLASS, MIN_CLASS } from "@/lib/kids-challenge/registration-validation";
-import { KidsChallengeRegistrationModel } from "@/models/KidsChallengeRegistration";
+import { KidsChallengeRegistrationModel, type KidsConfirmationEmailStatus } from "@/models/KidsChallengeRegistration";
 import { KidsChallengePaymentModel, type KidsChallengePaymentSource, type KidsChallengePaymentStatus } from "@/models/KidsChallengePayment";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -219,6 +219,11 @@ export type AdminRegistrationRow = {
   razorpayPaymentId: string | null;
   paidAt: string | null;
   createdAt: string;
+  /** Payment confirmation email. null = never attempted (unpaid, or paid before email tracking). */
+  emailStatus: KidsConfirmationEmailStatus | null;
+  emailSentAt: string | null;
+  emailError: string | null;
+  emailAttempts: number;
 };
 
 type RegDoc = {
@@ -237,6 +242,7 @@ type RegDoc = {
   razorpayOrderId?: string | null;
   razorpayPaymentId?: string | null;
   paidAt?: Date | null;
+  confirmationEmail?: { status?: KidsConfirmationEmailStatus; sentAt?: Date | null; lastError?: string | null; attempts?: number };
   consent?: boolean;
   createdAt: Date;
   updatedAt?: Date;
@@ -259,8 +265,20 @@ function toRegistrationRow(d: RegDoc): AdminRegistrationRow {
     razorpayPaymentId: d.razorpayPaymentId ?? null,
     paidAt: d.paidAt ? new Date(d.paidAt).toISOString() : null,
     createdAt: new Date(d.createdAt).toISOString(),
+    emailStatus: d.confirmationEmail?.status ?? null,
+    emailSentAt: d.confirmationEmail?.sentAt ? new Date(d.confirmationEmail.sentAt).toISOString() : null,
+    emailError: d.confirmationEmail?.lastError ?? null,
+    emailAttempts: d.confirmationEmail?.attempts ?? 0,
   };
 }
+
+/** Confirmation-email filter → Mongo condition. Emails only exist for paid registrations. */
+const EMAIL_FILTERS: Record<Exclude<AdminRegistrationsQuery["email"], "all">, Record<string, unknown>> = {
+  sent: { "confirmationEmail.status": "sent" },
+  failed: { "confirmationEmail.status": "failed" },
+  pending: { "confirmationEmail.status": "pending" },
+  not_sent: { paymentStatus: "paid", $or: [{ "confirmationEmail.status": "skipped" }, { "confirmationEmail.status": { $exists: false } }] },
+};
 
 /** Admin list: search, filters, whitelisted sort and pagination, all in Mongo. _id breaks ties so pages never overlap. */
 export async function queryAdminRegistrations(query: AdminRegistrationsQuery) {
@@ -283,6 +301,7 @@ export async function queryAdminRegistrations(query: AdminRegistrationsQuery) {
   if (query.payment !== "all") and.push({ paymentStatus: query.payment });
   if (query.studentClass !== "all") and.push({ studentClass: query.studentClass });
   if (query.state !== "all") and.push({ state: query.state });
+  if (query.email !== "all") and.push(EMAIL_FILTERS[query.email]);
   const filter = and.length ? { $and: and } : {};
   const dir = query.order === "asc" ? 1 : -1;
   const find = KidsChallengeRegistrationModel.find(filter)
