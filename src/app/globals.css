@@ -54,6 +54,15 @@ html:has(dialog[open]) {
   overflow: hidden;
 }
 
+/* Tailwind v4 resets buttons to the default cursor; every clickable control shows the pointer. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
+}
+
 /* Marching-ants animation for the snake timeline path on /schools */
 @keyframes snake-march {
   to {

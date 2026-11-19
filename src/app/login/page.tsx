@@ -17,8 +17,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <Section>
         <Container className="max-w-[448px]">
           <div className="rounded-[25px] border border-line bg-white p-[21px] shadow-[0_12px_30px_rgb(20_60_160/0.06)] md:p-[27px]">
-            <h2 className="mb-[7px] text-center font-display text-[22px] font-bold text-navy">Login</h2>
-            <p className="mb-5 text-center text-[13px] text-muted">Use your email and password, or continue with Google.</p>
+            <h1 className="mb-[7px] text-center font-display text-[22px] font-bold text-navy">Welcome back</h1>
+            <p className="mb-5 text-center text-[13px] text-muted">Log in to your account to continue.</p>
             <UserLoginForm next={next} googleError={params.error === "google"} />
           </div>
         </Container>

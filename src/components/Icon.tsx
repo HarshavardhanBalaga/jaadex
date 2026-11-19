@@ -31,7 +31,11 @@ type IconName =
   | "check"
   | "trash"
   | "loader"
-  | "download";
+  | "download"
+  | "refresh"
+  | "wallet"
+  | "chart"
+  | "alert";
 
 const iconClass: Record<IconName, string> = {
   palette: "ri-palette-line",
@@ -66,6 +70,10 @@ const iconClass: Record<IconName, string> = {
   trash: "ri-delete-bin-line",
   loader: "ri-loader-4-line",
   download: "ri-download-2-line",
+  refresh: "ri-refresh-line",
+  wallet: "ri-wallet-3-line",
+  chart: "ri-bar-chart-2-line",
+  alert: "ri-error-warning-line",
   chevronDown: "ri-arrow-down-s-line",
 };
 

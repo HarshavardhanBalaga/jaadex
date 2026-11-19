@@ -80,11 +80,11 @@ describe("website-user Google sign-in", () => {
     assert.doesNotMatch(route, /console\.(log|debug)\(/);
   });
 
-  it("uses a cookie name separate from the admin transaction cookie", () => {
+  it("uses its own transaction cookie, and admins have no Google flow at all", () => {
     const user = src("src/lib/user/google-routes.ts");
     const admin = src("src/lib/admin/google-routes.ts");
     assert.match(user, /USER_GOOGLE_TXN_COOKIE = "__Host-jaadex_user_oauth"/);
-    assert.match(admin, /ADMIN_GOOGLE_TXN_COOKIE = "__Host-jaadex_admin_oauth"/);
+    assert.doesNotMatch(admin, /ADMIN_GOOGLE_TXN_COOKIE|adminGoogleRedirectUri|googleLoginFailed/);
   });
 
   it("the User model has a partial unique index on googleSub", () => {
@@ -106,11 +106,10 @@ describe("website-user Google sign-in", () => {
     assert.match(service, /UserOtpModel\.updateMany\(\{ userId: user\._id, status: "active" \}, \{ \$set: \{ status: "expired" \} \}\)/);
   });
 
-  it("password login reports a Google-only account instead of a generic failure", () => {
-    const auth = src("src/lib/user/auth-service.ts");
-    assert.match(auth, /if \(!user\.passwordHash\) return user\.status === "active" \? \{ outcome: "google_only" \}/);
+  it("password login gives Google-only accounts the same generic error as a wrong password", () => {
     const login = src("src/app/api/auth/login/route.ts");
-    assert.match(login, /fail\(\s*"google_account"/);
+    assert.doesNotMatch(login, /"google_account"/, "login must not reveal how an account signs in");
+    assert.match(login, /if \(r\.outcome !== "ok"\) return fail\("invalid_credentials"/);
   });
 
   it("the Google buttons are plain links, so no client SDK or CSP change is needed", () => {

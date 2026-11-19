@@ -4,7 +4,7 @@
  */
 import mongoose, { Document, Model, Schema, Types } from "mongoose";
 
-export type UserOtpPurpose = "register" | "password-reset";
+export type UserOtpPurpose = "register" | "password-reset" | "password-setup";
 export type UserOtpStatus = "active" | "consumed" | "expired" | "locked";
 
 export interface UserOtpDoc extends Document {
@@ -26,7 +26,7 @@ export interface UserOtpDoc extends Document {
 const UserOtpSchema = new Schema<UserOtpDoc>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    purpose: { type: String, enum: ["register", "password-reset"], required: true, default: "register" },
+    purpose: { type: String, enum: ["register", "password-reset", "password-setup"], required: true, default: "register" },
     otpHash: { type: String, required: true, select: false },
     expiresAt: { type: Date, required: true },
     attempts: { type: Number, required: true, default: 0, min: 0 },

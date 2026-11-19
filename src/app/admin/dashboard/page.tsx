@@ -13,6 +13,10 @@ import { AdminDashboardShell, type AdminSection } from "@/components/admin/Admin
 import { WorkshopList, type WorkshopListItem } from "@/components/admin/WorkshopList";
 import { WorkshopRegistrationsView } from "@/components/admin/WorkshopRegistrationsView";
 import { interests, workshopInterest } from "@/lib/contact/validation";
+import { kidsChallengeCounts } from "@/lib/kids-challenge/admin-service";
+import { formatInr } from "@/lib/kids-challenge/analytics";
+import { KidsChallengeAdmin } from "@/components/admin/kids/KidsChallengeAdmin";
+import { KIDS_CHALLENGE_TABS } from "@/lib/kids-challenge/admin-tabs";
 
 export const metadata: Metadata = { title: "Admin Dashboard", description: "JaaDeX admin dashboard." };
 export const dynamic = "force-dynamic";
@@ -99,6 +103,8 @@ export default async function AdminDashboardPage() {
   let workshops: WorkshopListItem[] = [];
   // Submission counts per form topic, across all requests (not just the newest 50).
   let topicCounts = new Map<string, { total: number; newCount: number }>();
+  // Kids Creative Challenge headline counts (the section itself loads its data client-side).
+  let kids = { total: 0, paid: 0, revenuePaise: 0 };
   try {
     const c = getAdminAuthConfig();
     const store = await cookies();
@@ -142,6 +148,7 @@ export default async function AdminDashboardPage() {
     ]);
     topicCounts = new Map(topicDocs.map((t) => [t._id, { total: t.total, newCount: t.newCount }]));
     workshops = await listWorkshops();
+    kids = await kidsChallengeCounts();
   } catch {
     redirect("/admin/login");
   }
@@ -158,7 +165,7 @@ export default async function AdminDashboardPage() {
       label: "Overview",
       icon: "dashboard",
       content: (
-        <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-label="Overview">
+        <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4" aria-label="Overview">
           <StatCard
             label="New enquiries"
             value={String(newRequests)}
@@ -174,6 +181,14 @@ export default async function AdminDashboardPage() {
             href="#workshops"
             icon="calendar"
             accent="royal"
+          />
+          <StatCard
+            label="Kids Challenge"
+            value={formatInr(kids.revenuePaise)}
+            hint={`${kids.total} registered · ${kids.paid} paid · ${kids.total - kids.paid} pending`}
+            href="#kids-challenge/overview"
+            icon="sparkles"
+            accent="orange"
           />
           <StatCard
             label="Administrators"
@@ -284,6 +299,13 @@ export default async function AdminDashboardPage() {
       icon: "check",
       children: workshops.map((w) => ({ id: `registrations/${w.id}`, label: w.title })),
       content: <WorkshopRegistrationsView workshops={workshops} />,
+    },
+    {
+      id: "kids-challenge",
+      label: "Kids Challenge",
+      icon: "sparkles",
+      children: KIDS_CHALLENGE_TABS.map((t) => ({ id: `kids-challenge/${t.id}`, label: t.label })),
+      content: <KidsChallengeAdmin />,
     },
     {
       id: "administrators",

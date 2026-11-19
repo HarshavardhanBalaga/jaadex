@@ -121,6 +121,26 @@ export async function sendUserPasswordResetOtp(to: string, otp: string, expiresM
   await transport.sendMail({ from: c.mailFrom, to, ...email, attachments: iconAttachments() });
 }
 
+/** Website-user password-setup code (Google account adding a password), sent to the user's own email. */
+export async function sendUserPasswordSetupOtp(to: string, otp: string, expiresMinutes: number): Promise<void> {
+  const c = getAdminAuthConfig();
+  const transport = getTransport();
+  const email = buildOtpEmail({
+    subject: "Set a password for your JaaDeX account",
+    heading: "Set a password",
+    intro: "Your code to add a password to your JaaDeX account is:",
+    otp,
+    expiresMinutes,
+    reason: "If you did not request this, ignore this email. You can keep signing in with Google.",
+    siteUrl: c.appUrl,
+  });
+  if (!transport) {
+    console.info("[user-auth] SMTP not configured; password-setup email skipped (dev only).");
+    return;
+  }
+  await transport.sendMail({ from: c.mailFrom, to, ...email, attachments: iconAttachments() });
+}
+
 /**
  * Workshop emails (registration confirmations and admin updates), sent from MAIL_FROM.
  * "skipped" when SMTP is not configured; throws on SMTP failure so the caller can record it.

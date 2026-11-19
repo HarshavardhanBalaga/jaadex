@@ -17,12 +17,17 @@ const securityHeaders = [
       "default-src 'self'",
       // Next.js dev (Turbopack/React refresh) requires eval for stack traces.
       // unsafe-eval is dev-only; production omits it.
-      isDev ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self' 'unsafe-inline'",
+      // checkout.razorpay.com: Razorpay Checkout for the Kids Challenge ₹99 payment.
+      isDev
+        ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com"
+        : "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
-      "img-src 'self' data: blob:",
+      "img-src 'self' data: blob: https://*.razorpay.com",
       "media-src 'self' data: blob:",
-      "connect-src 'self' ws: wss:",
+      "connect-src 'self' ws: wss: https://*.razorpay.com",
+      // Razorpay Checkout renders its payment window in an iframe.
+      "frame-src https://api.razorpay.com https://checkout.razorpay.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
