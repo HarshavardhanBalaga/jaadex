@@ -29,6 +29,13 @@ export async function POST(request: Request) {
     if (r.outcome === "no_account") {
       return fail("no_account", "No account found for this email. Please register.", 404);
     }
+    if (r.outcome === "google_only") {
+      return fail(
+        "google_account",
+        "This account uses Google sign-in. Continue with Google, or use Forgot password to add a password.",
+        401,
+      );
+    }
     if (r.outcome !== "ok") return fail("invalid_credentials", "Invalid email or password.", 401);
     await createUserSession(r.userId, {
       ipHash: hashMeta(ip),

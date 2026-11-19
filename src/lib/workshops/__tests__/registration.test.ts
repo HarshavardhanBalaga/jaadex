@@ -84,7 +84,7 @@ describe("workshop registration CSV", () => {
 });
 
 describe("workshop registration confirmation email", () => {
-  const base = { name: "Priya Sharma", workshopTitle: "AI Filmmaking", date: "2026-12-05T00:00:00.000Z", location: "RTIH, Mangalagiri", workshopsUrl: "https://jaadex.example/workshops" };
+  const base = { name: "Priya Sharma", workshopTitle: "AI Filmmaking", date: "2026-12-05T00:00:00.000Z", location: "RTIH, Mangalagiri", workshopsUrl: "https://jaadex.example/workshops", siteUrl: "https://jaadex.example" };
 
   it("confirms the registration with the workshop details", () => {
     const { subject, text } = buildRegistrationConfirmationEmail(base);
@@ -129,6 +129,7 @@ describe("admin custom emails to registrants", () => {
       date: "2026-12-05T00:00:00.000Z",
       location: "RTIH, Mangalagiri",
       workshopsUrl: "https://jaadex.example/workshops",
+      siteUrl: "https://jaadex.example",
       subject: "Venue\r\nBcc: x@evil.com",
       message: "Line one.\n\nLine two.",
     });

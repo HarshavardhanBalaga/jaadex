@@ -18,6 +18,8 @@ export interface OAuthTransaction {
   state: string;
   codeVerifier: string;
   nonce: string;
+  /** Post-login redirect (user flow only). Re-validated by the callback before use. */
+  next?: string;
 }
 
 export interface GoogleProfile {

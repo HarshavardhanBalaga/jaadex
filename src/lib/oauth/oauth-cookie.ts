@@ -30,7 +30,12 @@ export async function consumeOAuthTxnCookie(name: string): Promise<OAuthTransact
   try {
     const t = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as Partial<OAuthTransaction>;
     if (typeof t.state !== "string" || typeof t.codeVerifier !== "string" || typeof t.nonce !== "string") return null;
-    return { state: t.state, codeVerifier: t.codeVerifier, nonce: t.nonce };
+    return {
+      state: t.state,
+      codeVerifier: t.codeVerifier,
+      nonce: t.nonce,
+      ...(typeof t.next === "string" ? { next: t.next } : {}),
+    };
   } catch {
     return null;
   }
