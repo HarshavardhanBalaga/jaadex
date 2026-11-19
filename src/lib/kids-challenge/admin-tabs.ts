@@ -2,5 +2,6 @@
 export const KIDS_CHALLENGE_TABS = [
   { id: "registrations", label: "Registrations" },
   { id: "payments", label: "Payment history" },
+  { id: "emails", label: "Emails" },
   { id: "overview", label: "Analytics" },
 ] as const;

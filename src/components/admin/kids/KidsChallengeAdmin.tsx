@@ -5,6 +5,7 @@ import { Toast } from "@/components/admin/Toast";
 import { KidsChallengeOverview } from "./KidsChallengeOverview";
 import { KidsChallengePayments } from "./KidsChallengePayments";
 import { KidsChallengeRegistrations } from "./KidsChallengeRegistrations";
+import { KidsChallengeEmails } from "./KidsChallengeEmails";
 import { KIDS_CHALLENGE_TABS } from "@/lib/kids-challenge/admin-tabs";
 
 type TabId = (typeof KIDS_CHALLENGE_TABS)[number]["id"];
@@ -55,6 +56,7 @@ export function KidsChallengeAdmin() {
       {tab === "overview" && <KidsChallengeOverview />}
       {tab === "registrations" && <KidsChallengeRegistrations onChanged={setToast} />}
       {tab === "payments" && <KidsChallengePayments onChanged={setToast} />}
+      {tab === "emails" && <KidsChallengeEmails onChanged={setToast} />}
 
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>

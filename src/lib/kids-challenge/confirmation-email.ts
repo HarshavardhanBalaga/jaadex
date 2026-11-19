@@ -1,5 +1,5 @@
 /**
- * Kids Creative Challenge confirmation email, sent once the ₹99 payment is confirmed (pure; unit-tested).
+ * Kids Creative Challenge emails (pure; unit-tested): the payment confirmation, and admin-written updates to parents.
  * Same shared JaaDeX layout as the workshop emails: plain-text part + HTML part, all values escaped by the layout helpers.
  */
 // Relative + .ts so the node test runner (no path aliases) can load this file directly.
@@ -70,6 +70,59 @@ export function buildKidsChallengeConfirmationEmail(e: KidsConfirmationEmailInpu
   const html = renderEmail({
     preheader: `${student}'s registration is confirmed. Payment of ${amount} received.`,
     heading: "Registration confirmed",
+    body,
+    footnote: `You're receiving this because you registered ${student} for the JaaDeX ${challengeTitle}.`,
+    logoUrl: `${e.siteUrl}/logo/jaadexlogo.png`,
+    siteUrl: e.siteUrl,
+  });
+  return { subject, text, html };
+}
+
+export interface KidsUpdateEmailInput {
+  parentName: string;
+  studentName: string;
+  studentClass: number;
+  /** Paid registrations get "View the challenge"; unpaid ones get a "Complete payment" button. */
+  paid: boolean;
+  subject: string;
+  message: string;
+  challengeUrl: string;
+  /** Register page, where an unpaid parent finishes the ₹99 payment. */
+  registerUrl: string;
+  siteUrl: string;
+}
+
+/** Admin-written message to one parent: greeting, the admin's paragraphs as written, the child's registration, one action button. */
+export function buildKidsChallengeUpdateEmail(e: KidsUpdateEmailInput): EmailParts {
+  const parent = oneLine(e.parentName, 80);
+  const student = oneLine(e.studentName, 80);
+  const subject = oneLine(e.subject, 150);
+  const message = e.message.trim();
+  const status = e.paid ? "Confirmed" : "Payment pending";
+  const rows = [
+    { label: "Student", value: student },
+    { label: "Class", value: `Class ${e.studentClass}` },
+    { label: "Registration", value: status },
+  ];
+  const action = e.paid ? { label: "View the challenge", url: e.challengeUrl } : { label: "Complete payment", url: e.registerUrl };
+
+  const text =
+    `Hi ${parent},\n\n` +
+    `${message}\n\n` +
+    rows.map((r) => `${r.label}: ${r.value}`).join("\n") +
+    `\n\n${action.label}: ${action.url}\n\n` +
+    `— Team JaaDeX\n`;
+
+  // Keep the admin's paragraphs as written: each blank line starts a new paragraph.
+  const messageHtml = message
+    .split(/\n\s*\n/)
+    .map((para) => paragraph(para.trim()))
+    .join("");
+  const body = paragraph(`Hi ${parent},`) + messageHtml + detailsTable(rows) + button(action.label, action.url);
+
+  const html = renderEmail({
+    preheader: subject,
+    heading: subject,
     body,
     footnote: `You're receiving this because you registered ${student} for the JaaDeX ${challengeTitle}.`,
     logoUrl: `${e.siteUrl}/logo/jaadexlogo.png`,

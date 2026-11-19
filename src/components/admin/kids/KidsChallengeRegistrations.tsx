@@ -7,6 +7,7 @@ import { ADMIN_PAGE_LIMITS, type AdminRegistrationsQuery } from "@/lib/kids-chal
 import { formatInr } from "@/lib/kids-challenge/analytics";
 import { INDIAN_STATES, MAX_CLASS, MIN_CLASS } from "@/lib/kids-challenge/registration-validation";
 import { RegistrationDetailDialog } from "./RegistrationDetailDialog";
+import { KidsChallengeEmailComposer } from "./KidsChallengeEmailComposer";
 import {
   downloadCsv,
   EmailStatusBadge,
@@ -55,6 +56,18 @@ export function KidsChallengeRegistrations({ onChanged }: { onChanged: (message:
   const [exportError, setExportError] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
+  /** Ticked registrations, kept across pages and filters until sent or cleared. */
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [composing, setComposing] = useState(false);
+
+  function toggleSelected(registrationId: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(registrationId)) next.delete(registrationId);
+      else next.add(registrationId);
+      return next;
+    });
+  }
 
   async function resend(r: AdminRegistrationRow) {
     if (resendingId) return;
@@ -199,7 +212,11 @@ export function KidsChallengeRegistrations({ onChanged }: { onChanged: (message:
             Clear filters
           </button>
         )}
-        <button type="button" onClick={() => void exportCsv()} disabled={exporting} className={`${secondaryButton} ml-auto`}>
+        <button type="button" onClick={() => setComposing(true)} className={`${secondaryButton} ml-auto`}>
+          <Icon name="mail" size={16} />
+          {selected.size > 0 ? `Email selected (${selected.size})` : "Email parents"}
+        </button>
+        <button type="button" onClick={() => void exportCsv()} disabled={exporting} className={secondaryButton}>
           <Icon name={exporting ? "loader" : "download"} size={16} className={exporting ? "animate-spin" : ""} />
           {exporting ? "Exporting…" : "Export CSV"}
         </button>
@@ -213,6 +230,16 @@ export function KidsChallengeRegistrations({ onChanged }: { onChanged: (message:
         <p role="alert" className="px-6 pt-3 text-[13px] font-medium text-[#a33d0c]">
           {resendError}
         </p>
+      )}
+      {selected.size > 0 && (
+        <div role="status" className="flex flex-wrap items-center gap-3 border-b border-line bg-[#eef4ff] px-6 py-2.5 text-[13px] text-navy">
+          <span className="font-semibold tabular-nums">
+            {selected.size} selected
+          </span>
+          <button type="button" onClick={() => setSelected(new Set())} className="cursor-pointer font-semibold text-royal hover:underline">
+            Clear selection
+          </button>
+        </div>
       )}
 
       {error && rows === null ? (
@@ -235,6 +262,27 @@ export function KidsChallengeRegistrations({ onChanged }: { onChanged: (message:
             <table className="w-full min-w-[1140px] text-left text-[14px]">
               <thead className="border-b border-line bg-[#f7f9fd] text-[12px] font-semibold tracking-[0.4px] text-[#2b3a63] uppercase">
                 <tr>
+                  <th className="w-12 py-3 pl-6">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all registrations on this page"
+                      checked={rows.length > 0 && rows.every((r) => selected.has(r.id))}
+                      ref={(el) => {
+                        if (el) el.indeterminate = !rows.every((r) => selected.has(r.id)) && rows.some((r) => selected.has(r.id));
+                      }}
+                      onChange={(e) =>
+                        setSelected((current) => {
+                          const next = new Set(current);
+                          for (const r of rows) {
+                            if (e.target.checked) next.add(r.id);
+                            else next.delete(r.id);
+                          }
+                          return next;
+                        })
+                      }
+                      className="size-4 cursor-pointer accent-royal"
+                    />
+                  </th>
                   <SortHeader label="Student" sortKey="studentName" query={query} onSort={toggleSort} />
                   <th className="px-4 py-3">School / place</th>
                   <th className="px-4 py-3">Parent</th>
@@ -246,7 +294,16 @@ export function KidsChallengeRegistrations({ onChanged }: { onChanged: (message:
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-line transition-colors last:border-0 hover:bg-[#f7f9fd]">
+                  <tr key={r.id} className={`border-b border-line transition-colors last:border-0 ${selected.has(r.id) ? "bg-[#eef4ff]" : "hover:bg-[#f7f9fd]"}`}>
+                    <td className="py-3.5 pl-6 align-top">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${r.studentName}`}
+                        checked={selected.has(r.id)}
+                        onChange={() => toggleSelected(r.id)}
+                        className="mt-1 size-4 cursor-pointer accent-royal"
+                      />
+                    </td>
                     <td className="px-4 py-3.5">
                       <button type="button" onClick={() => setOpenId(r.id)} className="cursor-pointer text-left font-semibold break-words text-navy hover:text-royal hover:underline">
                         {r.studentName}
@@ -310,6 +367,20 @@ export function KidsChallengeRegistrations({ onChanged }: { onChanged: (message:
           limits={ADMIN_PAGE_LIMITS}
           onPage={(page) => setQuery((c) => ({ ...c, page }))}
           onLimit={(limit) => update({ limit })}
+        />
+      )}
+
+      {composing && (
+        <KidsChallengeEmailComposer
+          selectedIds={[...selected]}
+          onClose={() => setComposing(false)}
+          onSent={(count) => {
+            setComposing(false);
+            setSelected(new Set());
+            onChanged(`Email is being sent to ${count} parent${count === 1 ? "" : "s"}.`);
+            // Delivery progress lives on the Emails tab.
+            window.location.hash = "kids-challenge/emails";
+          }}
         />
       )}
 

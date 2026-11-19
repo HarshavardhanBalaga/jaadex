@@ -32,6 +32,51 @@ function Kpi({ label, value, hint, icon }: { label: string; value: string; hint:
   );
 }
 
+/** One email type's delivery numbers. Alert values carry the word, never colour alone. */
+function EmailStatsCard({
+  title,
+  note,
+  stats,
+  rate,
+  hasAttempts,
+  link,
+}: {
+  title: string;
+  note: string;
+  stats: { label: string; value: string; alert?: boolean }[];
+  rate: number;
+  hasAttempts: boolean;
+  link: { href: string; label: string } | null;
+}) {
+  return (
+    <div className="bg-white p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-display text-[15px] font-bold text-navy">{title}</p>
+          <p className="mt-0.5 text-[12px] text-muted">{note}</p>
+        </div>
+        <div className="text-right">
+          <p className="font-display text-[22px] leading-none font-bold text-navy tabular-nums">{hasAttempts ? `${rate}%` : "—"}</p>
+          <p className="mt-1 text-[11px] font-bold tracking-[1px] text-muted uppercase">Delivery rate</p>
+        </div>
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {stats.map((s) => (
+          <div key={s.label} className={`rounded-lg px-3 py-2 ${s.alert ? "bg-[#fdece4]" : "bg-[#f7f9fd]"}`}>
+            <dt className={`text-[11px] font-bold tracking-[0.8px] uppercase ${s.alert ? "text-[#a33d0c]" : "text-muted"}`}>{s.label}</dt>
+            <dd className="mt-0.5 font-display text-[18px] font-bold text-navy tabular-nums">{s.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {link && (
+        <a href={link.href} className="mt-3 inline-block text-[13px] font-semibold text-royal hover:underline">
+          {link.label}
+        </a>
+      )}
+    </div>
+  );
+}
+
 /** Totals, trend and breakdowns for the Kids Creative Challenge. */
 export function KidsChallengeOverview() {
   const [days, setDays] = useState<number>(30);
@@ -129,6 +174,46 @@ export function KidsChallengeOverview() {
         <Kpi label="Failed attempts" value={n(p.failedAttempts)} hint={`${n(p.failedOrders)} checkout${p.failedOrders === 1 ? "" : "s"} ended failed`} icon="alert" />
         <Kpi label="No payment recorded" value={n(p.abandonedOrders)} hint="Orders created where no payment attempt has reached us" icon="alert" />
       </div>
+
+      {/* Email delivery */}
+      <Panel title="Email delivery" subtitle="Sent = accepted by the mail server. Bounces aren't tracked with the current SMTP setup.">
+        <div className="grid gap-px bg-line md:grid-cols-2">
+          <EmailStatsCard
+            title="Payment confirmation emails"
+            note={`Sent automatically after payment · ${n(data.emails.confirmation.paid)} paid registration${data.emails.confirmation.paid === 1 ? "" : "s"}`}
+            stats={[
+              { label: "Sent", value: n(data.emails.confirmation.sent) },
+              { label: "Failed", value: n(data.emails.confirmation.failed), alert: data.emails.confirmation.failed > 0 },
+              { label: "Not sent", value: n(data.emails.confirmation.notSent), alert: data.emails.confirmation.notSent > 0 },
+              { label: "Sending", value: n(data.emails.confirmation.sending) },
+            ]}
+            rate={data.emails.confirmation.deliveryRate}
+            hasAttempts={data.emails.confirmation.sent + data.emails.confirmation.failed + data.emails.confirmation.notSent > 0}
+            link={
+              data.emails.confirmation.failed + data.emails.confirmation.notSent > 0
+                ? { href: "#kids-challenge/registrations", label: "Review and resend on Registrations →" }
+                : null
+            }
+          />
+          <EmailStatsCard
+            title="Custom emails to parents"
+            note={
+              data.emails.custom.messages === 0
+                ? "No messages sent yet"
+                : `${n(data.emails.custom.messages)} message${data.emails.custom.messages === 1 ? "" : "s"} · ${n(data.emails.custom.messagesInRange)} in the last ${data.rangeDays} days · last ${fmtDateTime(data.emails.custom.lastSentAt)}`
+            }
+            stats={[
+              { label: "Delivered", value: n(data.emails.custom.sent) },
+              { label: "Not delivered", value: n(data.emails.custom.failed), alert: data.emails.custom.failed > 0 },
+              { label: "Sending", value: n(data.emails.custom.sending) },
+              { label: "Recipients", value: n(data.emails.custom.recipients) },
+            ]}
+            rate={data.emails.custom.deliveryRate}
+            hasAttempts={data.emails.custom.sent + data.emails.custom.failed > 0}
+            link={{ href: "#kids-challenge/emails", label: data.emails.custom.failed > 0 ? "Retry failed on the Emails tab →" : "Open the Emails tab →" }}
+          />
+        </div>
+      </Panel>
 
       {/* Trend */}
       <Panel

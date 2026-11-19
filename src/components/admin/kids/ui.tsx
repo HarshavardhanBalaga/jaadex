@@ -78,7 +78,7 @@ export function EmailStatusBadge({
   if (!paid && status === null) return <span className={`${badgeBase} bg-[#eef1f8] text-[#3d4a6b]`}>After payment</span>;
   if (status === "sent") {
     return (
-      <span className={`${badgeBase} bg-[#e3f4e3] text-[#1d6b1d]`} title={sentAt ? `Sent ${fmtDateTime(sentAt)}` : undefined}>
+      <span className={`${badgeBase} bg-[#e3f4e3] text-[#1d6b1d]`} title={sentAt ? `Accepted by the mail server ${fmtDateTime(sentAt)}` : "Accepted by the mail server"}>
         <Icon name="check" size={12} /> Sent
       </span>
     );

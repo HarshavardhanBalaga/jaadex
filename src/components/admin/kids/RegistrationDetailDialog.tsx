@@ -227,6 +227,29 @@ export function RegistrationDetailDialog({ registrationId, onClose, onChanged }:
             )}
           </section>
 
+          <section aria-labelledby={`${id}-messages`}>
+            <h4 id={`${id}-messages`} className="mb-3 font-display text-[15px] font-bold text-navy">
+              Messages sent
+            </h4>
+            {reg.customEmails.length === 0 ? (
+              <p className="text-[13px] text-muted">No custom emails sent to this parent yet. Use “Email parents” on the Registrations or Emails tab.</p>
+            ) : (
+              <ul className="divide-y divide-line rounded-xl border border-line">
+                {reg.customEmails.map((m) => (
+                  <li key={m.emailId} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-[13px]">
+                    <span className="min-w-0">
+                      <span className="block font-semibold break-words text-navy">{m.subject}</span>
+                      <span className="block text-[12px] text-muted">
+                        {fmtDateTime(m.createdAt)} · by {m.sentBy}
+                      </span>
+                    </span>
+                    <EmailStatusBadge status={m.status === "sending" ? "pending" : m.status} paid sentAt={m.sentAt} error={m.lastError} attempts={0} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
           <section aria-labelledby={`${id}-payments`}>
             <h4 id={`${id}-payments`} className="mb-3 font-display text-[15px] font-bold text-navy">
               Payment history

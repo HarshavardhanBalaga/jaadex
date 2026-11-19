@@ -10,11 +10,13 @@ import { escapeRegex } from "@/lib/workshops/registration-validation";
 import { fetchOrderPayments, isRazorpayConfigured } from "@/lib/payments/razorpay";
 import { markPaid, KIDS_CHALLENGE_FEE_PAISE } from "@/lib/kids-challenge/registration-service";
 import { recordPaymentFailed, recordPaymentSucceeded } from "@/lib/kids-challenge/payment-ledger";
+import { emailsForRegistration, type RegistrationMessage } from "@/lib/kids-challenge/email-service";
 import { fillDailySeries, istDayStart, istStartOfDay, percent, type DailyPoint } from "@/lib/kids-challenge/analytics";
 import type { AdminPaymentsQuery, AdminRegistrationsQuery } from "@/lib/kids-challenge/admin-validation";
 import { MAX_CLASS, MIN_CLASS } from "@/lib/kids-challenge/registration-validation";
 import { KidsChallengeRegistrationModel, type KidsConfirmationEmailStatus } from "@/models/KidsChallengeRegistration";
 import { KidsChallengePaymentModel, type KidsChallengePaymentSource, type KidsChallengePaymentStatus } from "@/models/KidsChallengePayment";
+import { KidsChallengeEmailModel } from "@/models/KidsChallengeEmail";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const IST = "Asia/Kolkata";
@@ -62,9 +64,70 @@ export type KidsChallengeAnalytics = {
   byClass: { studentClass: number; total: number; paid: number }[];
   byState: { state: string; total: number; paid: number }[];
   byMethod: { method: string | null; count: number; amountPaise: number }[];
+  /** "Sent" = accepted by the mail server; bounces are not tracked with plain SMTP. */
+  emails: KidsEmailStats;
+};
+
+export type KidsEmailStats = {
+  /** Automatic payment confirmations, over paid registrations. */
+  confirmation: { paid: number; sent: number; failed: number; notSent: number; sending: number; deliveryRate: number };
+  /** Admin-written emails. */
+  custom: { messages: number; messagesInRange: number; recipients: number; sent: number; failed: number; sending: number; deliveryRate: number; lastSentAt: string | null };
 };
 
 type Count = { _id: string; count: number };
+
+/** Confirmation + custom email delivery totals for the Analytics tab. */
+async function kidsEmailStats(rangeStart: Date): Promise<KidsEmailStats> {
+  const is = (status: string) => ({ $cond: [{ $eq: ["$confirmationEmail.status", status] }, 1, 0] });
+  const [confAgg, msgAgg, recAgg] = await Promise.all([
+    KidsChallengeRegistrationModel.aggregate<{ paid: number; sent: number; failed: number; sending: number; skipped: number; missing: number }>([
+      { $match: { paymentStatus: "paid" } },
+      {
+        $group: {
+          _id: null,
+          paid: { $sum: 1 },
+          sent: { $sum: is("sent") },
+          failed: { $sum: is("failed") },
+          sending: { $sum: is("pending") },
+          skipped: { $sum: is("skipped") },
+          // Paid before confirmation emails existed, or never claimed.
+          missing: { $sum: { $cond: [{ $eq: [{ $type: "$confirmationEmail.status" }, "missing"] }, 1, 0] } },
+        },
+      },
+    ]),
+    KidsChallengeEmailModel.aggregate<{ messages: number; inRange: number; last: Date | null }>([
+      { $group: { _id: null, messages: { $sum: 1 }, inRange: { $sum: { $cond: [{ $gte: ["$createdAt", rangeStart] }, 1, 0] } }, last: { $max: "$createdAt" } } },
+    ]),
+    KidsChallengeEmailModel.aggregate<{ _id: string; count: number }>([{ $unwind: "$recipients" }, { $group: { _id: "$recipients.status", count: { $sum: 1 } } }]),
+  ]);
+  const c = confAgg[0] ?? { paid: 0, sent: 0, failed: 0, sending: 0, skipped: 0, missing: 0 };
+  const m = msgAgg[0] ?? { messages: 0, inRange: 0, last: null };
+  const rec = new Map(recAgg.map((r) => [r._id, r.count]));
+  const n = (status: string) => rec.get(status) ?? 0;
+  const customSent = n("sent");
+  const customFailed = n("failed") + n("skipped");
+  return {
+    confirmation: {
+      paid: c.paid,
+      sent: c.sent,
+      failed: c.failed,
+      notSent: c.skipped + c.missing,
+      sending: c.sending,
+      deliveryRate: percent(c.sent, c.sent + c.failed + c.skipped),
+    },
+    custom: {
+      messages: m.messages,
+      messagesInRange: m.inRange,
+      recipients: [...rec.values()].reduce((a, b) => a + b, 0),
+      sent: customSent,
+      failed: customFailed,
+      sending: n("pending") + n("sending"),
+      deliveryRate: percent(customSent, customSent + customFailed),
+      lastSentAt: m.last ? new Date(m.last).toISOString() : null,
+    },
+  };
+}
 
 export async function getKidsChallengeAnalytics(rangeDays: number): Promise<KidsChallengeAnalytics> {
   await connectToDatabase();
@@ -73,7 +136,7 @@ export async function getKidsChallengeAnalytics(rangeDays: number): Promise<Kids
   const rangeStart = new Date(todayStart.getTime() - (rangeDays - 1) * DAY_MS);
   const paidAmount = { $ifNull: ["$amountPaise", KIDS_CHALLENGE_FEE_PAISE] };
 
-  const [totalsAgg, regsDaily, paidDaily, classAgg, stateAgg, methodAgg, ledgerAgg] = await Promise.all([
+  const [emails, [totalsAgg, regsDaily, paidDaily, classAgg, stateAgg, methodAgg, ledgerAgg]] = await Promise.all([kidsEmailStats(rangeStart), Promise.all([
     KidsChallengeRegistrationModel.aggregate<{
       registrations: number;
       paid: number;
@@ -142,7 +205,7 @@ export async function getKidsChallengeAnalytics(rangeDays: number): Promise<Kids
         },
       },
     ]),
-  ]);
+  ])]);
 
   const t = totalsAgg[0] ?? { registrations: 0, paid: 0, gross: 0, todayRevenue: 0, todayPaid: 0, todayRegs: 0, rangeRevenue: 0, rangePaid: 0, rangeRegs: 0 };
   const l = ledgerAgg[0] ?? { orders: 0, paidOrders: 0, failedOrders: 0, abandoned: 0, failedAttempts: 0, fees: 0, feesKnown: 0 };
@@ -182,6 +245,7 @@ export async function getKidsChallengeAnalytics(rangeDays: number): Promise<Kids
     }),
     byState: stateAgg.map((s) => ({ state: s._id, total: s.total, paid: s.paid })),
     byMethod: methodAgg.map((m) => ({ method: m._id, count: m.count, amountPaise: m.amountPaise })),
+    emails,
   };
 }
 
@@ -448,13 +512,16 @@ export type AdminRegistrationDetail = AdminRegistrationRow & {
   consent: boolean;
   updatedAt: string | null;
   payments: AdminPaymentRow[];
+  /** Admin-written emails this parent was sent, newest first. */
+  customEmails: RegistrationMessage[];
 };
 
 export async function getAdminRegistrationDetail(id: string): Promise<AdminRegistrationDetail | null> {
   await connectToDatabase();
-  const [d, payments] = await Promise.all([
+  const [d, payments, customEmails] = await Promise.all([
     KidsChallengeRegistrationModel.findById(id).select({ userId: 0, __v: 0 }).lean<RegDoc>(),
     KidsChallengePaymentModel.find({ registrationId: new Types.ObjectId(id) }).select(PAYMENT_FIELDS).sort({ createdAt: -1 }).lean<PaymentDoc[]>(),
+    emailsForRegistration(id),
   ]);
   if (!d) return null;
   return {
@@ -463,6 +530,7 @@ export async function getAdminRegistrationDetail(id: string): Promise<AdminRegis
     consent: Boolean(d.consent),
     updatedAt: d.updatedAt ? new Date(d.updatedAt).toISOString() : null,
     payments: payments.map(toPaymentRow),
+    customEmails,
   };
 }
 
