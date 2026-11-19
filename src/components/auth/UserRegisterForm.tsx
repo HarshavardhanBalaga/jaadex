@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { registerSchema } from "@/lib/admin/validation";
 import { getCsrfToken, postJson } from "@/lib/admin-client/auth-fetch";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 
 const inputClass =
   "w-full max-w-[440px] rounded-xl border border-[#cfd9f0] bg-white px-[13px] py-3 text-ink outline-none focus:border-royal focus:ring-[3px] focus:ring-royal/10";
@@ -137,8 +138,9 @@ export function UserRegisterForm({ next, noAccount = false }: { next: string; no
           We couldn&apos;t find an account for that email. Create one below to continue.
         </p>
       ) : null}
+      <GoogleSignInButton next={next} label="Sign up with Google" />
       <div className="grid gap-1.5">
-        <label htmlFor="user-reg-name" className="text-xs font-black text-[#2b3b78]">Full name *</label>
+        <label htmlFor="user-reg-name"className="text-xs font-black text-[#2b3b78]">Full name *</label>
         <input id="user-reg-name" type="text" required autoComplete="name" maxLength={80} value={name}
           onChange={(e) => setName(e.target.value)} placeholder="Your full name" className={inputClass} />
       </div>

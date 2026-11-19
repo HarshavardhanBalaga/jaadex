@@ -7,7 +7,10 @@ export interface UserDoc extends Document {
   _id: Types.ObjectId;
   name: string;
   email: string;
-  passwordHash: string;
+  /** Absent for Google-only accounts. */
+  passwordHash?: string | null;
+  /** Google account id (OIDC `sub`) once linked. */
+  googleSub?: string | null;
   status: UserStatus;
   emailVerifiedAt: Date | null;
   lastLoginAt: Date | null;
@@ -26,7 +29,8 @@ const UserSchema = new Schema<UserDoc>(
       maxlength: 254,
       match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email"],
     },
-    passwordHash: { type: String, required: true, select: false },
+    passwordHash: { type: String, default: null, select: false },
+    googleSub: { type: String, default: null },
     status: { type: String, enum: ["pending", "active", "disabled"], required: true, default: "pending" },
     emailVerifiedAt: { type: Date, default: null },
     lastLoginAt: { type: Date, default: null },
@@ -35,5 +39,10 @@ const UserSchema = new Schema<UserDoc>(
 );
 
 UserSchema.index({ email: 1 }, { unique: true });
+// One website account per Google account; unlinked (null) accounts are excluded from uniqueness.
+UserSchema.index(
+  { googleSub: 1 },
+  { unique: true, partialFilterExpression: { googleSub: { $type: "string" } }, name: "uniq_user_google_sub" },
+);
 
 export const UserModel: Model<UserDoc> = mongoose.models.User ?? mongoose.model<UserDoc>("User", UserSchema);

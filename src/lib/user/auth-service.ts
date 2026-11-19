@@ -173,6 +173,7 @@ export async function verifyUserOtp(
 export type UserLoginOutcome =
   | { outcome: "ok"; userId: Types.ObjectId }
   | { outcome: "no_account" }
+  | { outcome: "google_only" }
   | { outcome: "invalid" };
 
 /**
@@ -184,6 +185,8 @@ export async function loginUser(email: string, password: string): Promise<UserLo
   await connectToDatabase();
   const user = await UserModel.findOne({ email: email.trim().toLowerCase() }).select("+passwordHash");
   if (!user || user.status === "pending") return { outcome: "no_account" };
+  // Google-only accounts have no password yet; forgot-password can add one.
+  if (!user.passwordHash) return user.status === "active" ? { outcome: "google_only" } : { outcome: "invalid" };
   const pwOk = await verifyPassword(password, user.passwordHash);
   if (!pwOk || user.status !== "active") return { outcome: "invalid" };
   return { outcome: "ok", userId: user._id };

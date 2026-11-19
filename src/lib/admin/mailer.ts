@@ -2,11 +2,14 @@
  * SMTP mailer (SERVER-ONLY). Registration codes go to the shared inbox;
  * password-reset codes go to the account email; new-enquiry alerts go to
  * ENQUIRY_NOTIFY_EMAIL (fallback ADMIN_OTP_EMAIL).
+ * Every mail is sent as multipart: an HTML part in the shared JaaDeX layout plus a plain-text part.
  */
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import { getAdminAuthConfig } from "./auth-config";
 import { buildEnquiryEmail, type EnquiryForEmail } from "@/lib/contact/notify";
+import { buildOtpEmail } from "@/lib/email/auth-emails";
+import type { EmailParts } from "@/lib/email/layout";
 
 let cachedTransport: Transporter | null = null;
 
@@ -26,67 +29,83 @@ function getTransport(): Transporter | null {
 export async function sendRegistrationOtp(otp: string, expiresMinutes: number): Promise<void> {
   const c = getAdminAuthConfig();
   const transport = getTransport();
-  const subject = "JaaDeX admin registration code";
-  const text =
-    `Your JaaDeX admin verification code is: ${otp}\n\n` +
-    `It expires in ${expiresMinutes} minutes and can be used once.\n` +
-    `If you did not request this, ignore this email.`;
+  const email = buildOtpEmail({
+    subject: "JaaDeX admin registration code",
+    heading: "Verify your admin registration",
+    intro: "Your JaaDeX admin OTP is:",
+    otp,
+    expiresMinutes,
+    reason: "If you did not request this, ignore this email.",
+    siteUrl: c.appUrl,
+  });
   if (!transport) {
     // No SMTP configured (local dev): never throw, never expose OTP via API.
     console.info("[admin-auth] SMTP not configured; OTP email skipped (dev only).");
     return;
   }
-  await transport.sendMail({ from: c.mailFrom, to: c.adminOtpEmail, subject, text });
+  await transport.sendMail({ from: c.mailFrom, to: c.adminOtpEmail, ...email });
 }
 
 export async function sendPasswordResetOtp(to: string, otp: string, expiresMinutes: number): Promise<void> {
   const c = getAdminAuthConfig();
   const transport = getTransport();
-  const subject = "JaaDeX admin password reset code";
-  const text =
-    `Your JaaDeX admin password reset code is: ${otp}\n\n` +
-    `It expires in ${expiresMinutes} minutes and can be used once.\n` +
-    `If you did not request this, ignore this email and your password will stay unchanged.`;
+  const email = buildOtpEmail({
+    subject: "JaaDeX admin password reset code",
+    heading: "Reset your admin password",
+    intro: "Your JaaDeX admin password reset code is:",
+    otp,
+    expiresMinutes,
+    reason: "If you did not request this, ignore this email and your password will stay unchanged.",
+    siteUrl: c.appUrl,
+  });
   if (!transport) {
     // No SMTP configured (local dev): never throw, never expose OTP via API.
     console.info("[admin-auth] SMTP not configured; password-reset email skipped (dev only).");
     return;
   }
-  await transport.sendMail({ from: c.mailFrom, to, subject, text });
+  await transport.sendMail({ from: c.mailFrom, to, ...email });
 }
 
 /** Website-user registration code, sent to the user's own email. */
 export async function sendUserVerificationOtp(to: string, otp: string, expiresMinutes: number): Promise<void> {
   const c = getAdminAuthConfig();
   const transport = getTransport();
-  const subject = "Verify your JaaDeX account";
-  const text =
-    `Your JaaDeX verification code is: ${otp}\n\n` +
-    `It expires in ${expiresMinutes} minutes and can be used once.\n` +
-    `If you did not create a JaaDeX account, ignore this email.`;
+  const email = buildOtpEmail({
+    subject: "Verify your JaaDeX account",
+    heading: "Verify your account",
+    intro: "Your JaaDeX OTP is:",
+    otp,
+    expiresMinutes,
+    reason: "If you did not create a JaaDeX account, ignore this email.",
+    siteUrl: c.appUrl,
+  });
   if (!transport) {
     // No SMTP configured (local dev): never throw, never expose OTP via API.
     console.info("[user-auth] SMTP not configured; verification email skipped (dev only).");
     return;
   }
-  await transport.sendMail({ from: c.mailFrom, to, subject, text });
+  await transport.sendMail({ from: c.mailFrom, to, ...email });
 }
 
 /** Website-user password-reset code, sent to the user's own email. */
 export async function sendUserPasswordResetOtp(to: string, otp: string, expiresMinutes: number): Promise<void> {
   const c = getAdminAuthConfig();
   const transport = getTransport();
-  const subject = "Reset your JaaDeX password";
-  const text =
-    `Your JaaDeX password reset code is: ${otp}\n\n` +
-    `It expires in ${expiresMinutes} minutes and can be used once.\n` +
-    `If you did not request this, ignore this email and your password will stay unchanged.`;
+  const email = buildOtpEmail({
+    subject: "Reset your JaaDeX password",
+    heading: "Reset your password",
+    intro: "Your JaaDeX password reset code is:",
+    otp,
+    expiresMinutes,
+    reason: "If you did not request this, ignore this email and your password will stay unchanged.",
+    siteUrl: c.appUrl,
+  });
   if (!transport) {
     // No SMTP configured (local dev): never throw, never expose OTP via API.
     console.info("[user-auth] SMTP not configured; password-reset email skipped (dev only).");
     return;
   }
-  await transport.sendMail({ from: c.mailFrom, to, subject, text });
+  await transport.sendMail({ from: c.mailFrom, to, ...email });
 }
 
 /**
@@ -95,7 +114,7 @@ export async function sendUserPasswordResetOtp(to: string, otp: string, expiresM
  */
 export async function sendWorkshopEmail(
   to: string,
-  email: { subject: string; text: string },
+  email: EmailParts,
   attachments: { filename: string; content: Buffer; contentType: string }[] = [],
 ): Promise<"sent" | "skipped"> {
   const c = getAdminAuthConfig();
@@ -104,7 +123,7 @@ export async function sendWorkshopEmail(
     console.info("[workshops] SMTP not configured; workshop email skipped (dev only).");
     return "skipped";
   }
-  await transport.sendMail({ from: c.mailFrom, to, subject: email.subject, text: email.text, attachments });
+  await transport.sendMail({ from: c.mailFrom, to, subject: email.subject, text: email.text, html: email.html, attachments });
   return "sent";
 }
 
@@ -116,6 +135,6 @@ export async function sendEnquiryNotification(enquiry: EnquiryForEmail): Promise
     console.info("[contact] SMTP not configured; enquiry email skipped (dev only).");
     return;
   }
-  const { subject, text } = buildEnquiryEmail(enquiry, `${c.appUrl}/admin/dashboard`);
-  await transport.sendMail({ from: c.mailFrom, to: c.enquiryNotifyEmails, replyTo: enquiry.email, subject, text });
+  const { subject, text, html } = buildEnquiryEmail(enquiry, c.appUrl);
+  await transport.sendMail({ from: c.mailFrom, to: c.enquiryNotifyEmails, replyTo: enquiry.email, subject, text, html });
 }

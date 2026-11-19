@@ -143,6 +143,7 @@ export async function deliverWorkshopEmail(emailId: string): Promise<void> {
       subject: doc.subject,
       message: doc.message,
       workshopsUrl,
+      siteUrl: getAdminAuthConfig().appUrl,
     });
     let set: Record<string, unknown>;
     try {

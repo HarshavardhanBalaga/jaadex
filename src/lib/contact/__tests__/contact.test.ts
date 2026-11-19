@@ -86,7 +86,7 @@ describe("contact", () => {
         message: "Line one\nLine two",
         createdAt: new Date("2026-10-26T10:00:00Z"),
       },
-      "http://localhost:3000/admin/dashboard",
+      "http://localhost:3000",
     );
     assert.doesNotMatch(subject, /[\r\n]/, "subject must not allow header injection");
     assert.match(subject, /^New enquiry: Product Demonstration/);
