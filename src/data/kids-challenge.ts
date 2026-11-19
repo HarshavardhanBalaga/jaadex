@@ -120,7 +120,7 @@ export const footer = {
   website: "jaadex.com",
   websiteHref: "https://www.jaadex.com",
   emailNote: "For school partnerships and enquiries:",
-  email: "hello@jaadex.com",
+  email: "info@jaadex.com",
   cta: "Join the Challenge – ₹99",
 };
 
