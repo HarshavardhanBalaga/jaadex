@@ -109,8 +109,8 @@ export const finalCta = {
   heading: "Ready to create?",
   supporting: "Your lesson. Your imagination. Your story.",
   description: "Register for ₹99, create your comic and animated story, and compete for a place among the Top 10 student winners.",
-  cta: "Register Interest – ₹99 →",
-  note: "Registration/payment link and official dates will be added here before public launch. Please contact JaaDeX for school bulk registrations.",
+  cta: "Register Now – ₹99 →",
+  note: "Registration is open. Pay ₹99 securely online to confirm your child's entry. For school bulk registrations, please contact JaaDeX.",
 };
 
 export const footer = {
