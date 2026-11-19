@@ -160,12 +160,12 @@ export default function KidsCreativeChallengePage() {
           </div>
 
           {/* Ranks 4–10 as a single strip */}
-          <div className="mx-auto mt-6 flex max-w-[860px] flex-col items-center gap-2 rounded-[24px] border border-line bg-paper px-6 py-5 text-center md:flex-row md:justify-between md:text-left">
+          <div className="mx-auto mt-6 flex max-w-[560px] flex-col items-center gap-1 rounded-[24px] border border-[#ffd9b8] bg-linear-[135deg,#fff8f1,#ffe9d6] px-6 py-5 text-center shadow-[0_1px_2px_rgba(200,90,20,0.06),0_14px_28px_-16px_rgba(230,120,50,0.35)] md:flex-row md:justify-between md:gap-6 md:px-8 md:text-left">
             <div>
               <p className="font-display text-[20px] font-black text-navy">{prizes.cards[3].label}</p>
               {prizes.cards[3].note ? <p className="text-[14px] text-[#4a5a85]">{prizes.cards[3].note}</p> : null}
             </div>
-            <p className="font-display text-[28px] font-black text-royal">{prizes.cards[3].amount}</p>
+            <p className="font-display text-[clamp(26px,3vw,32px)] leading-none font-black text-navy">{prizes.cards[3].amount}</p>
           </div>
 
           {/* Judging and call to action */}
@@ -199,10 +199,10 @@ export default function KidsCreativeChallengePage() {
       {/* Final CTA */}
       <Section id="register" className="scroll-mt-28" topless>
         <Container>
-          <ClosingCard title={finalCta.heading} description={`${finalCta.supporting} ${finalCta.description}`}>
+          <ClosingCard title={finalCta.heading} description={finalCta.description}>
             <ButtonLink href={registrationHref}>{finalCta.cta}</ButtonLink>
           </ClosingCard>
-          <p className="mx-auto mt-2 max-w-[720px] text-center text-[14px] leading-[1.7] text-muted">{finalCta.note}</p>
+          
         </Container>
       </Section>
 

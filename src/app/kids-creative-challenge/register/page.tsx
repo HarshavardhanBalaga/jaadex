@@ -6,7 +6,8 @@ import { KidsChallengeRegisterForm } from "@/components/kids/KidsChallengeRegist
 import { RazorpayPayButton } from "@/components/kids/RazorpayPayButton";
 import { RegistrationNotice } from "@/components/workshops/RegistrationNotice";
 import { benefits, eligibility, hero } from "@/data/kids-challenge";
-import { userKidsChallengeRegistrations } from "@/lib/kids-challenge/registration-service";
+import { Icon } from "@/components/Icon";
+import { pendingKidsChallengeRegistration, userKidsChallengeRegistrations } from "@/lib/kids-challenge/registration-service";
 import { getCurrentUser } from "@/lib/user/session";
 
 export const dynamic = "force-dynamic";
@@ -16,13 +17,17 @@ export const metadata: Metadata = {
   description: "Register a student for the JaaDeX Kids Creative Challenge.",
 };
 
-const LOGIN_URL = `/login?next=${encodeURIComponent("/kids-creative-challenge/register")}`;
+const REGISTER_PATH = "/kids-creative-challenge/register";
+const LOGIN_URL = `/login?next=${encodeURIComponent(REGISTER_PATH)}`;
 
-export default async function KidsChallengeRegisterPage() {
+export default async function KidsChallengeRegisterPage({ searchParams }: PageProps<"/kids-creative-challenge/register">) {
+  const { edit } = await searchParams;
   const user = await getCurrentUser().catch(() => null);
   // DB hiccup → no lists; the API still refuses a duplicate on submit.
   const empty = { paid: [] as string[], pending: [] as { id: string; studentName: string }[] };
   const { paid, pending } = user ? await userKidsChallengeRegistrations(user).catch(() => empty) : empty;
+  // "Edit" on an unpaid registration opens the form with its saved values.
+  const editing = user && typeof edit === "string" ? await pendingKidsChallengeRegistration(user, edit).catch(() => null) : null;
 
   return (
     <Section className="bg-hero-wash">
@@ -47,7 +52,7 @@ export default async function KidsChallengeRegisterPage() {
               </RegistrationNotice>
             ) : null}
 
-            {pending.length > 0 ? (
+            {pending.length > 0 && !editing ? (
               <div className="grid gap-3 rounded-[13px] border border-[#f4d2b8] bg-[#fff6ee] p-[15px]">
                 <p className="font-display text-[16px] font-bold text-navy">Awaiting payment</p>
                 <p className="text-[14px] leading-[1.6] text-muted">These registrations are saved but not confirmed until the ₹99 fee is paid.</p>
@@ -55,15 +60,36 @@ export default async function KidsChallengeRegisterPage() {
                   {pending.map((r) => (
                     <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-[#f4d2b8] pt-3">
                       <span className="font-bold text-navy">{r.studentName}</span>
-                      <RazorpayPayButton registrationId={r.id} label={`Pay ₹99 for ${r.studentName}`} />
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`${REGISTER_PATH}?edit=${r.id}`}
+                          aria-label={`Edit details for ${r.studentName}`}
+                          title="Edit details"
+                          className="grid size-9 place-items-center rounded-full border border-royal/30 bg-white text-royal hover:text-orange"
+                        >
+                          <Icon name="pencil" size={16} />
+                        </Link>
+                        <RazorpayPayButton registrationId={r.id} label={`Pay ₹99 for ${r.studentName}`} />
+                      </div>
                     </li>
                   ))}
                 </ul>
               </div>
             ) : null}
 
-            {user ? (
-              <KidsChallengeRegisterForm user={{ name: user.name, email: user.email }} />
+            {user && editing ? (
+              <div className="grid gap-5">
+                <Link href={REGISTER_PATH} className="justify-self-start text-[14px] font-black text-royal hover:text-orange">
+                  <span aria-hidden="true">←</span> Back to saved registrations
+                </Link>
+                <KidsChallengeRegisterForm
+                  user={{ name: user.name, email: user.email }}
+                  initial={{ registrationId: editing.id, values: editing }}
+                />
+              </div>
+            ) : user ? (
+              // Unpaid registrations are shown above with their Pay button; the form only appears when there are none.
+              pending.length === 0 ? <KidsChallengeRegisterForm user={{ name: user.name, email: user.email }} /> : null
             ) : (
               <div className="grid justify-items-start gap-4">
                 <p className="text-[14px] leading-[1.6] text-muted">Log in to your JaaDeX account to register a student.</p>

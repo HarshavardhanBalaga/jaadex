@@ -178,6 +178,65 @@ export async function listKidsChallengeRegistrations(): Promise<KidsChallengeReg
 }
 
 /** This account's registrations, oldest first, split into paid and awaiting payment. */
+/** Saved values of one unpaid registration of this user, to prefill the edit form. */
+export async function pendingKidsChallengeRegistration(user: CurrentUser, registrationId: string) {
+  await connectToDatabase();
+  const d = await KidsChallengeRegistrationModel.findOne({ _id: registrationId, userId: new Types.ObjectId(user.id), paymentStatus: "pending" })
+    .select({ parentName: 1, parentPhone: 1, studentName: 1, studentClass: 1, studentAge: 1, schoolName: 1, city: 1, state: 1 })
+    .lean();
+  if (!d) return null;
+  return {
+    id: String(d._id),
+    parentName: d.parentName,
+    parentPhone: d.parentPhone,
+    studentName: d.studentName,
+    studentClass: String(d.studentClass),
+    studentAge: String(d.studentAge),
+    schoolName: d.schoolName,
+    city: d.city,
+    state: d.state,
+  };
+}
+
+export type UpdatePendingResult = { ok: true } | { ok: false; reason: "not_found" | "already_paid" | "duplicate_student" };
+
+/** Overwrite the saved details of one unpaid registration of this user. Paid registrations are never changed. */
+export async function updatePendingKidsChallengeRegistration(
+  user: CurrentUser,
+  registrationId: string,
+  input: KidsChallengeRegistrationInput,
+): Promise<UpdatePendingResult> {
+  await connectToDatabase();
+  const userId = new Types.ObjectId(user.id);
+  const current = await KidsChallengeRegistrationModel.findOne({ _id: registrationId, userId }).select({ paymentStatus: 1 }).lean();
+  if (!current) return { ok: false, reason: "not_found" };
+  if (current.paymentStatus === "paid") return { ok: false, reason: "already_paid" };
+  try {
+    const res = await KidsChallengeRegistrationModel.updateOne(
+      { _id: registrationId, userId, paymentStatus: "pending" },
+      {
+        $set: {
+          parentName: input.parentName,
+          parentEmail: input.parentEmail,
+          parentPhone: input.parentPhone,
+          studentName: input.studentName,
+          studentClass: input.studentClass,
+          studentAge: input.studentAge,
+          schoolName: input.schoolName,
+          city: input.city,
+          state: input.state,
+          consent: input.consent,
+        },
+      },
+    );
+    if (res.matchedCount === 0) return { ok: false, reason: "already_paid" };
+    return { ok: true };
+  } catch (err) {
+    if (isDuplicateKeyError(err)) return { ok: false, reason: "duplicate_student" };
+    throw err;
+  }
+}
+
 export async function userKidsChallengeRegistrations(user: CurrentUser): Promise<{ paid: string[]; pending: { id: string; studentName: string }[] }> {
   await connectToDatabase();
   const docs = await KidsChallengeRegistrationModel.find({ userId: new Types.ObjectId(user.id) })

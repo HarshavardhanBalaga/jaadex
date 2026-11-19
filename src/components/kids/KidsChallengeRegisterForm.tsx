@@ -21,27 +21,44 @@ const fieldClass =
 const REGISTER_PATH = "/kids-creative-challenge/register";
 const CLASSES = Array.from({ length: MAX_CLASS - MIN_CLASS + 1 }, (_, i) => MIN_CLASS + i);
 
+type SavedValues = {
+  parentName: string;
+  parentPhone: string;
+  studentName: string;
+  studentClass: string;
+  studentAge: string;
+  schoolName: string;
+  city: string;
+  state: string;
+};
+
 type Props = {
   /** Signed-in website user, used to prefill the parent details. */
   user: { name: string; email: string };
+  /** Editing a saved, unpaid registration: prefill with its values and save changes to it. */
+  initial?: { registrationId: string; values: SavedValues };
 };
 
 /**
  * Kids Creative Challenge registration: step 1 saves the details (payment pending), step 2 takes the
  * ₹99 Razorpay payment. Validates with the same zod schema as the API; the server is the authority.
  */
-export function KidsChallengeRegisterForm({ user }: Props) {
+export function KidsChallengeRegisterForm({ user, initial }: Props) {
   const router = useRouter();
   const id = useId();
   const blankStudent = { studentName: "", studentClass: "", studentAge: "", schoolName: "" };
+  const seed = initial?.values;
   const [form, setForm] = useState({
-    parentName: user.name,
+    parentName: seed?.parentName ?? user.name,
     parentEmail: user.email,
-    parentPhone: "",
-    ...blankStudent,
-    city: "",
-    state: "",
-    consent: false,
+    parentPhone: seed?.parentPhone ?? "",
+    studentName: seed?.studentName ?? blankStudent.studentName,
+    studentClass: seed?.studentClass ?? blankStudent.studentClass,
+    studentAge: seed?.studentAge ?? blankStudent.studentAge,
+    schoolName: seed?.schoolName ?? blankStudent.schoolName,
+    city: seed?.city ?? "",
+    state: seed?.state ?? "",
+    consent: Boolean(seed),
     website: "",
   });
   const [busy, setBusy] = useState(false);
@@ -60,6 +77,8 @@ export function KidsChallengeRegisterForm({ user }: Props) {
     setForm((current) => ({ ...current, ...blankStudent, consent: false }));
     setSaved(null);
     setPaid(false);
+    // Leave edit mode (if this was opened from a saved registration) and reload the list.
+    router.replace(REGISTER_PATH);
     router.refresh();
   }
 
@@ -76,8 +95,8 @@ export function KidsChallengeRegisterForm({ user }: Props) {
     setFieldErrors({});
     setBusy(true);
     try {
-      const res = await fetch("/api/kids-challenge/registrations", {
-        method: "POST",
+      const res = await fetch(initial ? `/api/kids-challenge/registrations/${initial.registrationId}` : "/api/kids-challenge/registrations", {
+        method: initial ? "PUT" : "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(form),
       });
@@ -117,8 +136,7 @@ export function KidsChallengeRegisterForm({ user }: Props) {
     return (
       <div className="grid justify-items-start gap-4">
         <RegistrationNotice title="Step 2 of 2: complete the payment">
-          {saved.studentName}&apos;s details are saved. Pay the ₹99 entry fee securely with Razorpay (UPI, cards, net banking) to confirm the
-          registration.
+          Your details are saved. Pay ₹99 to complete the registration.
         </RegistrationNotice>
         <RazorpayPayButton registrationId={saved.id} onPaid={() => setPaid(true)} />
       </div>
