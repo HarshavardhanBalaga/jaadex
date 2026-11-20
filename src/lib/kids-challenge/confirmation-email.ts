@@ -33,13 +33,20 @@ function istDateTime(d: Date): string {
 /** Steps after payment: the first published step ("registers … completes payment") is already done. */
 const NEXT_STEPS = howToJoin.steps.slice(1);
 
+/** Added to every parent email subject so the sender and the reason for the mail are clear. */
+const SUBJECT_SUFFIX = " - kids creative challenge[JaaDeX]";
+
+/** First row of every details table: names the challenge the mail is about. */
+const CHALLENGE_ROW = { label: "Challenge", value: `JaaDeX ${challengeTitle}` };
+
 export function buildKidsChallengeConfirmationEmail(e: KidsConfirmationEmailInput): EmailParts {
   const parent = oneLine(e.parentName, 80);
   const student = oneLine(e.studentName, 80);
   const school = oneLine(e.schoolName, 120);
   const amount = formatInr(e.amountPaise);
-  const subject = oneLine(`Registration confirmed: ${student} – JaaDeX ${challengeTitle}`, 200);
+  const subject = oneLine(`Registration confirmed: ${student}${SUBJECT_SUFFIX}`, 200);
   const rows = [
+    CHALLENGE_ROW,
     { label: "Student", value: student },
     { label: "Class", value: `Class ${e.studentClass}` },
     { label: "School", value: school },
@@ -69,7 +76,7 @@ export function buildKidsChallengeConfirmationEmail(e: KidsConfirmationEmailInpu
 
   const html = renderEmail({
     preheader: `${student}'s registration is confirmed. Payment of ${amount} received.`,
-    heading: "Registration confirmed",
+    heading: `Welcome to the JaaDeX ${challengeTitle}`,
     body,
     footnote: `You're receiving this because you registered ${student} for the JaaDeX ${challengeTitle}.`,
     logoUrl: `${e.siteUrl}/logo/jaadexlogo.png`,
@@ -96,10 +103,11 @@ export interface KidsUpdateEmailInput {
 export function buildKidsChallengeUpdateEmail(e: KidsUpdateEmailInput): EmailParts {
   const parent = oneLine(e.parentName, 80);
   const student = oneLine(e.studentName, 80);
-  const subject = oneLine(e.subject, 150);
+  const subject = oneLine(`${e.subject}${SUBJECT_SUFFIX}`, 200);
   const message = e.message.trim();
   const status = e.paid ? "Confirmed" : "Payment pending";
   const rows = [
+    CHALLENGE_ROW,
     { label: "Student", value: student },
     { label: "Class", value: `Class ${e.studentClass}` },
     { label: "Registration", value: status },
@@ -122,7 +130,7 @@ export function buildKidsChallengeUpdateEmail(e: KidsUpdateEmailInput): EmailPar
 
   const html = renderEmail({
     preheader: subject,
-    heading: subject,
+    heading: "Kids Creative Challenge update",
     body,
     footnote: `You're receiving this because you registered ${student} for the JaaDeX ${challengeTitle}.`,
     logoUrl: `${e.siteUrl}/logo/jaadexlogo.png`,
