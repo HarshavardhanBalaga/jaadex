@@ -27,7 +27,7 @@ describe("confirmation email template", () => {
   it("has a one-line subject naming the student and the challenge", () => {
     const { subject } = buildKidsChallengeConfirmationEmail({ ...input, studentName: "Anil\r\nBcc: x@evil.com" });
     assert.equal(subject.includes("\n") || subject.includes("\r"), false);
-    assert.match(buildKidsChallengeConfirmationEmail(input).subject, /^Registration confirmed: Anil Rao – JaaDeX Kids Creative Challenge$/);
+    assert.match(buildKidsChallengeConfirmationEmail(input).subject, /^Registration confirmed: Anil Rao - kids creative challenge\[JaaDeX\]$/);
   });
 
   it("includes the payment facts in both parts", () => {

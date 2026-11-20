@@ -57,7 +57,8 @@ describe("custom email template", () => {
     const { text, html } = buildKidsChallengeUpdateEmail({ ...base, paid: true });
     assert.ok(text.startsWith("Hi Lakshmi Rao,"));
     assert.ok(text.includes("First paragraph.\n\nSecond paragraph."));
-    assert.ok(text.includes("Student: Anil Rao") && text.includes("Class: Class 5") && text.includes("Registration: Confirmed"));
+    assert.ok(text.includes("Challenge: JaaDeX Kids Creative Challenge") && text.includes("Student: Anil Rao") && text.includes("Class: Class 5") && text.includes("Registration: Confirmed"));
+    assert.ok(buildKidsChallengeUpdateEmail({ ...base, paid: true }).subject.endsWith(" - kids creative challenge[JaaDeX]"));
     assert.equal((html.match(/First paragraph\.|Second paragraph\./g) ?? []).length, 2);
   });
 
